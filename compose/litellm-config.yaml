@@ -1,0 +1,19 @@
+model_list:
+  - model_name: ultron
+    litellm_params:
+      model: openai/ultron
+      api_base: http://host.docker.internal:8080/v1
+      api_key: os.environ/LLAMA_API_KEY
+
+litellm_settings:
+  callbacks: ["prometheus"]
+  # /metrics requires the master key as Bearer (default since v1.85.0)
+  require_auth_for_metrics_endpoint: true
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  # spend/request logs are written to Postgres (disable_spend_logs defaults to false)
+  disable_spend_logs: false
+  # token counts are logged; message text is NOT copied into Postgres
+  # (chat history already lives in Open WebUI). Set true for full traces.
+  store_prompts_in_spend_logs: false
