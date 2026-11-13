@@ -1,0 +1,497 @@
+{
+    "uid":  "ultron-main",
+    "title":  "Ultron",
+    "tags":  [
+                 "ultron"
+             ],
+    "schemaVersion":  39,
+    "version":  1,
+    "timezone":  "browser",
+    "refresh":  "30s",
+    "time":  {
+                 "to":  "now",
+                 "from":  "now-6h"
+             },
+    "panels":  [
+                   {
+                       "id":  1,
+                       "title":  "Generation tokens/s",
+                       "type":  "timeseries",
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "prometheus"
+                                      },
+                       "gridPos":  {
+                                       "y":  0,
+                                       "w":  12,
+                                       "h":  8,
+                                       "x":  0
+                                   },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "none"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "generation",
+                                           "expr":  "llamacpp:predicted_tokens_seconds",
+                                           "refId":  "A"
+                                       }
+                                   ]
+                   },
+                   {
+                       "id":  2,
+                       "title":  "Prompt tokens/s",
+                       "type":  "timeseries",
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "prometheus"
+                                      },
+                       "gridPos":  {
+                                       "y":  0,
+                                       "w":  12,
+                                       "h":  8,
+                                       "x":  12
+                                   },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "none"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "prompt",
+                                           "expr":  "llamacpp:prompt_tokens_seconds",
+                                           "refId":  "A"
+                                       }
+                                   ]
+                   },
+                   {
+                       "id":  3,
+                       "title":  "Tokens per hour (hourly increase)",
+                       "type":  "timeseries",
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "prometheus"
+                                      },
+                       "gridPos":  {
+                                       "y":  8,
+                                       "w":  12,
+                                       "h":  8,
+                                       "x":  0
+                                   },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "none"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "predicted",
+                                           "expr":  "increase(llamacpp:tokens_predicted_total[1h])",
+                                           "refId":  "A"
+                                       },
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "prompt",
+                                           "expr":  "increase(llamacpp:prompt_tokens_total[1h])",
+                                           "refId":  "B"
+                                       }
+                                   ]
+                   },
+                   {
+                       "id":  4,
+                       "title":  "Tokens last 24h",
+                       "type":  "stat",
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "prometheus"
+                                      },
+                       "gridPos":  {
+                                       "y":  8,
+                                       "w":  6,
+                                       "h":  8,
+                                       "x":  12
+                                   },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "none"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "predicted",
+                                           "expr":  "increase(llamacpp:tokens_predicted_total[24h])",
+                                           "refId":  "A"
+                                       },
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "prompt",
+                                           "expr":  "increase(llamacpp:prompt_tokens_total[24h])",
+                                           "refId":  "B"
+                                       }
+                                   ],
+                       "options":  {
+                                       "colorMode":  "value",
+                                       "graphMode":  "none",
+                                       "reduceOptions":  {
+                                                             "calcs":  [
+                                                                           "lastNotNull"
+                                                                       ]
+                                                         }
+                                   }
+                   },
+                   {
+                       "id":  5,
+                       "title":  "Total tokens since start",
+                       "type":  "stat",
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "prometheus"
+                                      },
+                       "gridPos":  {
+                                       "y":  8,
+                                       "w":  6,
+                                       "h":  8,
+                                       "x":  18
+                                   },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "none"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "predicted",
+                                           "expr":  "llamacpp:tokens_predicted_total",
+                                           "refId":  "A"
+                                       },
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "prompt",
+                                           "expr":  "llamacpp:prompt_tokens_total",
+                                           "refId":  "B"
+                                       }
+                                   ],
+                       "options":  {
+                                       "colorMode":  "value",
+                                       "graphMode":  "none",
+                                       "reduceOptions":  {
+                                                             "calcs":  [
+                                                                           "lastNotNull"
+                                                                       ]
+                                                         }
+                                   }
+                   },
+                   {
+                       "id":  6,
+                       "title":  "Requests processing / deferred",
+                       "type":  "timeseries",
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "prometheus"
+                                      },
+                       "gridPos":  {
+                                       "y":  16,
+                                       "w":  12,
+                                       "h":  8,
+                                       "x":  0
+                                   },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "none"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "processing",
+                                           "expr":  "llamacpp:requests_processing",
+                                           "refId":  "A"
+                                       },
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "deferred",
+                                           "expr":  "llamacpp:requests_deferred",
+                                           "refId":  "B"
+                                       }
+                                   ]
+                   },
+                   {
+                       "id":  7,
+                       "title":  "LiteLLM tokens per hour",
+                       "type":  "timeseries",
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "prometheus"
+                                      },
+                       "gridPos":  {
+                                       "y":  16,
+                                       "w":  12,
+                                       "h":  8,
+                                       "x":  12
+                                   },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "none"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "total tokens",
+                                           "expr":  "sum(increase({__name__=~\"litellm_total_tokens_metric(_total)?\"}[1h]))",
+                                           "refId":  "A"
+                                       }
+                                   ]
+                   },
+                   {
+                       "id":  8,
+                       "title":  "LiteLLM request latency (p50 / p95)",
+                       "type":  "timeseries",
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "prometheus"
+                                      },
+                       "gridPos":  {
+                                       "y":  24,
+                                       "w":  12,
+                                       "h":  8,
+                                       "x":  0
+                                   },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "s"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "p50",
+                                           "expr":  "histogram_quantile(0.5, sum by (le) (rate(litellm_request_total_latency_metric_bucket[5m])))",
+                                           "refId":  "A"
+                                       },
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "p95",
+                                           "expr":  "histogram_quantile(0.95, sum by (le) (rate(litellm_request_total_latency_metric_bucket[5m])))",
+                                           "refId":  "B"
+                                       }
+                                   ]
+                   },
+                   {
+                       "id":  9,
+                       "title":  "GPU VRAM used / total",
+                       "type":  "timeseries",
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "prometheus"
+                                      },
+                       "gridPos":  {
+                                       "y":  24,
+                                       "w":  12,
+                                       "h":  8,
+                                       "x":  12
+                                   },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "bytes"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "used",
+                                           "expr":  "nvidia_smi_memory_used_bytes",
+                                           "refId":  "A"
+                                       },
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "total",
+                                           "expr":  "nvidia_smi_memory_total_bytes",
+                                           "refId":  "B"
+                                       }
+                                   ]
+                   },
+                   {
+                       "id":  10,
+                       "title":  "GPU temperature",
+                       "type":  "timeseries",
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "prometheus"
+                                      },
+                       "gridPos":  {
+                                       "y":  32,
+                                       "w":  8,
+                                       "h":  8,
+                                       "x":  0
+                                   },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "celsius"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "temp",
+                                           "expr":  "nvidia_smi_temperature_gpu",
+                                           "refId":  "A"
+                                       }
+                                   ]
+                   },
+                   {
+                       "id":  11,
+                       "title":  "GPU utilisation",
+                       "type":  "timeseries",
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "prometheus"
+                                      },
+                       "gridPos":  {
+                                       "y":  32,
+                                       "w":  8,
+                                       "h":  8,
+                                       "x":  8
+                                   },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "percent"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "util",
+                                           "expr":  "nvidia_smi_utilization_gpu_ratio * 100",
+                                           "refId":  "A"
+                                       }
+                                   ]
+                   },
+                   {
+                       "id":  12,
+                       "title":  "GPU power",
+                       "type":  "timeseries",
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "prometheus"
+                                      },
+                       "gridPos":  {
+                                       "y":  32,
+                                       "w":  8,
+                                       "h":  8,
+                                       "x":  16
+                                   },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "watt"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "prometheus"
+                                                          },
+                                           "legendFormat":  "power",
+                                           "expr":  "nvidia_smi_power_draw_watts",
+                                           "refId":  "A"
+                                       }
+                                   ]
+                   }
+               ]
+}
