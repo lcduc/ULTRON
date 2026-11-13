@@ -1,0 +1,7 @@
+﻿models/
+backups/
+bin/
+logs/
+.env
+*.gguf
+monitoring/secrets/
