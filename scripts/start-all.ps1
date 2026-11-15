@@ -22,12 +22,22 @@ if (-not (Get-Process nvidia_gpu_exporter -ErrorAction SilentlyContinue)) {
     Write-Output "gpu exporter starting"
 }
 
+# 2b. GPU broker (lets the agent hand the GPU to ComfyUI and back)
+$brokerRunning = Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
+    Where-Object { $_.CommandLine -match 'gpu-broker\.ps1' }
+if (-not $brokerRunning) {
+    Start-Process powershell -WindowStyle Hidden -ArgumentList @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden',
+        '-File', (Join-Path $PSScriptRoot 'gpu-broker.ps1'))
+    Write-Output "gpu broker starting"
+}
+
 # 3. Docker Desktop (clears stale sockets first)
 & (Join-Path $PSScriptRoot 'start-docker.ps1')
 
 # 4. Containers
 Set-Location (Join-Path $root 'compose')
-docker compose --profile gateway --profile monitoring up -d
+docker compose --profile gateway --profile monitoring --profile agent up -d
 
 # 5. Publish the chat UI to the tailnet (no-op if Tailscale is not installed or signed in)
 $ts = 'C:\Program Files\Tailscale\tailscale.exe'

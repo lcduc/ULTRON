@@ -1,0 +1,23 @@
+{
+  "description": "Text to image with an SDXL checkpoint (photorealistic by default).",
+  "timeout_seconds": 600,
+  "params": {
+    "prompt": {"node": "2", "input": "text", "type": "str", "required": true, "help": "What the image should show"},
+    "negative": {"node": "3", "input": "text", "type": "str", "help": "What to avoid"},
+    "width": {"node": "4", "input": "width", "type": "int", "min": 512, "max": 1536, "help": "Multiple of 64; 1024 default"},
+    "height": {"node": "4", "input": "height", "type": "int", "min": 512, "max": 1536, "help": "Multiple of 64; 1024 default"},
+    "steps": {"node": "5", "input": "steps", "type": "int", "min": 10, "max": 50},
+    "cfg": {"node": "5", "input": "cfg", "type": "float", "min": 1, "max": 12},
+    "seed": {"node": "5", "input": "seed", "type": "seed", "help": "Random if omitted; pass a number to reproduce"},
+    "checkpoint": {"node": "1", "input": "ckpt_name", "type": "str", "model_folder": "checkpoints"}
+  },
+  "graph": {
+    "1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "RealVisXL_V5.0_fp16.safetensors"}},
+    "2": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["1", 1], "text": ""}},
+    "3": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["1", 1], "text": "blurry, low quality, deformed, watermark, text"}},
+    "4": {"class_type": "EmptyLatentImage", "inputs": {"width": 1024, "height": 1024, "batch_size": 1}},
+    "5": {"class_type": "KSampler", "inputs": {"model": ["1", 0], "positive": ["2", 0], "negative": ["3", 0], "latent_image": ["4", 0], "seed": 1, "steps": 28, "cfg": 5.0, "sampler_name": "dpmpp_2m_sde", "scheduler": "karras", "denoise": 1.0}},
+    "6": {"class_type": "VAEDecode", "inputs": {"samples": ["5", 0], "vae": ["1", 2]}},
+    "7": {"class_type": "SaveImage", "inputs": {"images": ["6", 0], "filename_prefix": "ultron_sdxl"}}
+  }
+}

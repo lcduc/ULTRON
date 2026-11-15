@@ -1,0 +1,6 @@
+{
+  "comfy_url": "http://host.docker.internal:8188",
+  "broker_url": "http://host.docker.internal:8090",
+  "broker_host_header": "127.0.0.1:8090",
+  "output_dir": "/home/user/workspace/outputs"
+}
