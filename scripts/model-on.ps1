@@ -1,4 +1,5 @@
-# Loads the model back onto the GPU and waits until it answers.
+# Starts the model server again and waits until it answers. The server loads the
+# chat model at startup and swaps to the agent model on demand (scripts\models.ini).
 
 if (Get-Process llama-server -ErrorAction SilentlyContinue) {
     Write-Output "Model server is already running."

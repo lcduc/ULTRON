@@ -1,9 +1,35 @@
 model_list:
+  # Fast chat: thinking off (also the model server's default).
   - model_name: ultron
     litellm_params:
       model: openai/ultron
       api_base: http://host.docker.internal:8080/v1
       api_key: os.environ/LLAMA_API_KEY
+      extra_body:
+        chat_template_kwargs:
+          enable_thinking: false
+
+  # Same loaded model with step-by-step reasoning switched on.
+  - model_name: ultron-think
+    litellm_params:
+      model: openai/ultron
+      api_base: http://host.docker.internal:8080/v1
+      api_key: os.environ/LLAMA_API_KEY
+      extra_body:
+        chat_template_kwargs:
+          enable_thinking: true
+
+  # Larger agent model for multi-step work. Selecting it swaps models on the GPU
+  # (about 25 s); selecting ultron again swaps back.
+  - model_name: ultron-agent
+    litellm_params:
+      model: openai/ultron-agent
+      api_base: http://host.docker.internal:8080/v1
+      api_key: os.environ/LLAMA_API_KEY
+      timeout: 900
+      extra_body:
+        chat_template_kwargs:
+          enable_thinking: false
 
 litellm_settings:
   callbacks: ["prometheus"]

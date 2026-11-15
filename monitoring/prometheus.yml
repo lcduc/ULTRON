@@ -3,13 +3,8 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: llama-server
-    metrics_path: /metrics
-    authorization:
-      type: Bearer
-      credentials_file: /etc/prometheus/secrets/llama_api_key
-    static_configs:
-      - targets: ["host.docker.internal:8080"]
+  # The model server runs in router mode: per-model /metrics requests would force
+  # a model swap, so speed and token metrics come from the LiteLLM job instead.
 
   - job_name: litellm
     metrics_path: /metrics

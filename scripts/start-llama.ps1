@@ -1,9 +1,11 @@
-# Runs the model server in the foreground and restarts it if it exits.
+# Runs the model server (router mode) in the foreground and restarts it if it exits.
+# Models and their settings are defined in scripts\models.ini; one is loaded at a time
+# and the router swaps them on demand by the "model" name in each request.
 # Listens on localhost only; containers reach it through host.docker.internal.
 
 $root    = Split-Path -Parent $PSScriptRoot
 $exe     = Join-Path $root 'bin\llama\llama-server.exe'
-$model   = Join-Path $root 'models\gemma-4-12B-it-heretic-Q4_K_M.gguf'
+$presets = Join-Path $PSScriptRoot 'models.ini'
 $keyFile = Join-Path $root 'monitoring\secrets\llama_api_key'
 $logDir  = Join-Path $root 'logs'
 
@@ -12,6 +14,7 @@ if (-not (Test-Path $keyFile)) {
     exit 1
 }
 New-Item -ItemType Directory -Force $logDir | Out-Null
+Set-Location $root    # preset model paths are relative to the repository root
 
 # Keep the last 5 logs.
 Get-ChildItem $logDir -Filter 'llama-server-*.log' | Sort-Object LastWriteTime -Descending |
@@ -20,11 +23,7 @@ Get-ChildItem $logDir -Filter 'llama-server-*.log' | Sort-Object LastWriteTime -
 while ($true) {
     $log = Join-Path $logDir ("llama-server-{0}.log" -f (Get-Date -Format yyyyMMdd-HHmmss))
     & $exe `
-        -m $model -a ultron `
-        -ngl all -c 16384 -np 1 --load-mode none `
-        -fa on -ctk q8_0 -ctv q8_0 `
-        --cache-reuse 256 -cram 2048 `
-        --reasoning off `
+        --models-preset $presets --models-max 1 `
         --host 127.0.0.1 --port 8080 `
         --api-key-file $keyFile `
         --metrics --no-webui `
