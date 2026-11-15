@@ -14,14 +14,51 @@ Private, unfiltered local chat assistant. Design and reasoning are in [PLAN.md](
 | Uptime Kuma | http://localhost:3002 | Create the admin and monitors on first visit |
 | GPU exporter | 127.0.0.1:9835 | Native |
 
+| Web search (SearXNG) | internal only | Used by the chat UI; no published port |
+| Agent sandbox (Open Terminal 0.17.8) | internal only | Shell and files for `ultron-agent`; sees only the workspace folder |
+
 All secrets are in `compose/.env` and `monitoring/secrets/` (git-ignored).
 
-Model: `models/gemma-4-12B-it-heretic-Q4_K_M.gguf`, 16k context, thinking off. Measured on this PC: ~37 tokens/sec, ~8.8 GB VRAM, ~1.3 GB RAM.
+## Models
+
+The model server runs in router mode (`scripts/models.ini`): one model is in VRAM at a time and it swaps on demand when a chat uses a different model name.
+
+| Name in the picker | Model | Measured here |
+|---|---|---|
+| `ultron` | Gemma 4 12B Heretic, 24k context, thinking off | ~37 tok/s, ~8–9 GB VRAM, loaded at startup |
+| `ultron-think` | Same loaded model with reasoning on | Same speed; several hundred extra tokens per answer |
+| `ultron-agent` | Qwen3.6-35B-A3B Heretic, 32k context, part on CPU | ~45–50 tok/s, ~10.2 GB VRAM, ~11.6 GB RAM; ~30 s to swap in, ~13 s to swap back |
+
+Test scripts: `scripts/test-tools.ps1`, `scripts/test-modes.ps1`, `scripts/test-refusals.ps1`, `scripts/bench-agent-model.ps1`.
+
+## Agent sandbox
+
+- The sandbox container can read and write only its own home volume and the workspace folder set by `AGENT_WORKSPACE` in `compose/.env`.
+- It is on its own Docker network with Open WebUI only; it cannot reach the database, gateway or monitoring containers directly.
+- It can reach the internet, and any service this PC publishes on localhost (model server, gateway, chat UI, Grafana, Uptime Kuma, Prometheus, GPU exporter). All but Prometheus and the GPU exporter require a key or login. Keep nothing private in the workspace.
+- To connect it in Open WebUI: add an Open Terminal connection with URL `http://open-terminal:8000` and the `OPEN_TERMINAL_API_KEY` value from `compose/.env`, and enable it only for `ultron-agent`.
+
+## Skills and the GPU broker
+
+- `skills/<app>/` holds an instruction file (`SKILL.md`) and helper scripts for each app the agent may operate. The folder is mounted read-only in the sandbox at `/home/user/workspace/skills/`.
+- `skills/comfyui/comfy.py` runs ComfyUI workflow templates (`skills/comfyui/workflows/*.json`), saves results to the workspace `outputs/` folder, and validates parameters before queueing. It never installs anything into ComfyUI and never submits arbitrary graphs.
+- `scripts/gpu-broker.ps1` (localhost port 8090, started by `start-all.ps1`) lets the helper unload the chat model before a ComfyUI job and free ComfyUI's VRAM after it. The chat model reloads by itself on the next request.
+- ComfyUI must be running on port 8188 (ComfyUI Desktop → instance → Manage → Startup Args: `--port 8188`). It only serves while the Desktop app has the instance launched.
+- To add a workflow: export it from ComfyUI with File → Export (API) and wrap it as described in `skills/comfyui/SKILL.md`.
+
+## Open WebUI settings made in the admin pages
+
+Settings saved in the admin UI live in Open WebUI's database and override `.env` values. Record changes here so a rebuild can repeat them.
+
+- Sign-ups disabled.
+- Open Terminal connection to `http://open-terminal:8000` with the sandbox key; default terminal set on `ultron-agent` only.
+- Function Calling set to Native on all three models.
+- Web search (engine `searxng`, URL `http://searxng:8080/search`, 3 results) and code interpreter (Pyodide) enabled. These were written straight into the settings database on 2026-11-15 because the saved values overrode `.env`.
 
 ## Daily operation
 
 - **Start everything:** `scripts\start-all.ps1` (also runs automatically at Windows sign-in, task "Ultron Start").
-- **Stop containers:** `docker compose --profile gateway --profile monitoring stop` in `compose\`.
+- **Stop containers:** `docker compose --profile gateway --profile monitoring --profile agent stop` in `compose\`.
 - **Stop the model:** end the hidden PowerShell running `start-llama.ps1`, then `llama-server.exe`.
 - **Docker fails with "file cannot be accessed by the system":** run `scripts\start-docker.ps1`; it moves the stale socket folders aside. Never use "Reset to factory defaults".
 - **Model settings** (context size, model file): edit `scripts\start-llama.ps1`, then restart the model.
