@@ -15,6 +15,7 @@ services:
   open-webui:
     image: ghcr.io/open-webui/open-webui:v0.13.3
     restart: unless-stopped
+    networks: [default, agent]
     ports:
       - "127.0.0.1:3000:8080"
     volumes:
@@ -34,13 +35,66 @@ services:
       ENABLE_COMMUNITY_SHARING: "false"
       ENABLE_VERSION_UPDATE_CHECK: "false"
       ENABLE_CODE_EXECUTION: "false"
-      ENABLE_CODE_INTERPRETER: "false"
+      # Code interpreter runs in the browser sandbox (Pyodide), never on the PC.
+      ENABLE_CODE_INTERPRETER: "true"
+      CODE_INTERPRETER_ENGINE: pyodide
+      # Web search through the internal SearXNG container.
+      ENABLE_WEB_SEARCH: "true"
+      WEB_SEARCH_ENGINE: searxng
+      SEARXNG_QUERY_URL: http://searxng:8080/search
+      WEB_SEARCH_RESULT_COUNT: "3"
+      WEB_SEARCH_CONCURRENT_REQUESTS: "2"
+      WEB_FETCH_MAX_CONTENT_LENGTH: "8000"
+      # Never let fetched pages point the bot at this PC or the home network.
+      ENABLE_LOCAL_WEB_FETCH: "false"
+      # Stop a looping model after 8 tool rounds.
+      CHAT_RESPONSE_MAX_TOOL_CALL_ITERATIONS: "8"
     healthcheck:
       test: ["CMD-SHELL", "curl --silent --fail http://localhost:8080/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 90s
+    logging: *default-logging
+
+  searxng:
+    image: searxng/searxng:2026.11.12-de722ab1b
+    restart: unless-stopped
+    # No published port: only reachable from other containers on this network.
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET}
+      SEARXNG_BASE_URL: http://searxng:8080/
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    logging: *default-logging
+
+  # Sandbox for the agent: shell, files and code execution inside this container.
+  # Sees only its own home volume and the workspace folder. No published port and
+  # no Docker socket; Open WebUI reaches it at http://open-terminal:8000.
+  open-terminal:
+    profiles: ["agent"]
+    image: ghcr.io/open-webui/open-terminal:0.17.8
+    restart: unless-stopped
+    environment:
+      OPEN_TERMINAL_API_KEY: ${OPEN_TERMINAL_API_KEY}
+    volumes:
+      - open-terminal-home:/home/user
+      - ${AGENT_WORKSPACE}:/home/user/workspace
+      # Skills (instructions + helper scripts per app) come from this repository, read-only.
+      - ../skills:/home/user/workspace/skills:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    mem_limit: 2g
+    # Own network shared only with Open WebUI, so the sandbox cannot reach the
+    # database, gateway or monitoring containers directly.
+    networks: [agent]
     logging: *default-logging
 
   postgres:
@@ -159,8 +213,12 @@ services:
     logging: *default-logging
 
 volumes:
+  open-terminal-home:
   open-webui-data:
   postgres-data:
   prometheus-data:
   grafana-data:
   uptime-kuma-data:
+
+networks:
+  agent:

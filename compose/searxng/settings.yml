@@ -1,0 +1,14 @@
+# SearXNG for Open WebUI web search. Internal use only (no published port).
+# The secret key comes from the SEARXNG_SECRET environment variable.
+use_default_settings: true
+
+server:
+  # Rate limiter needs a Valkey instance and is pointless on a private network.
+  limiter: false
+  image_proxy: false
+
+search:
+  # Open WebUI needs the JSON format; without it every query returns 403.
+  formats:
+    - html
+    - json
