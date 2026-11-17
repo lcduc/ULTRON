@@ -84,6 +84,10 @@ services:
     restart: unless-stopped
     environment:
       OPEN_TERMINAL_API_KEY: ${OPEN_TERMINAL_API_KEY}
+      # The agent model cannot read images, so screenshot-based desktop and browser
+      # tools only produce errors. Apps are operated through skills instead.
+      OPEN_TERMINAL_ENABLE_DESKTOP: "false"
+      OPEN_TERMINAL_ENABLE_BROWSER: "false"
     volumes:
       - open-terminal-home:/home/user
       - ${AGENT_WORKSPACE}:/home/user/workspace
