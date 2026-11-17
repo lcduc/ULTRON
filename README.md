@@ -17,7 +17,7 @@ Private, unfiltered local chat assistant. Design and reasoning are in [PLAN.md](
 | Web search (SearXNG) | internal only | Used by the chat UI; no published port |
 | Agent sandbox (Open Terminal 0.17.8) | internal only | Shell and files for `ultron-agent`; sees only the workspace folder |
 
-All secrets are in `compose/.env` and `monitoring/secrets/` (git-ignored).
+All secrets are in `compose/.env` and `monitoring/secrets/` (git-ignored). This includes the Google Calendar refresh token, which the daily backup copies with the other secrets.
 
 ## Models
 
@@ -45,6 +45,26 @@ Test scripts: `scripts/test-tools.ps1`, `scripts/test-modes.ps1`, `scripts/test-
 - `scripts/gpu-broker.ps1` (localhost port 8090, started by `start-all.ps1`) lets the helper unload the chat model before a ComfyUI job and free ComfyUI's VRAM after it. The chat model reloads by itself on the next request.
 - ComfyUI must be running on port 8188 (ComfyUI Desktop → instance → Manage → Startup Args: `--port 8188`). It only serves while the Desktop app has the instance launched.
 - To add a workflow: export it from ComfyUI with File → Export (API) and wrap it as described in `skills/comfyui/SKILL.md`.
+
+## Google Calendar
+
+`tools/google_calendar.py` is an Open WebUI tool. It lets the bot read your calendar and add, move or delete events with phone reminders ("I have a haircut at 1pm this Sunday, remind me"). The reminders are Google Calendar's own notifications, so they reach every phone signed in to the Google Calendar app.
+
+**One-time setup**
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create a project (e.g. "Ultron") and enable the **Google Calendar API**.
+2. **Google Auth Platform → Branding/Audience:** set up the consent screen. With a personal Gmail account, choose *External*, add yourself as a test user, then click **Publish app** so the status reads *In production*. Publishing needs a home page and privacy policy link under Branding: use https://lcduc.github.io/ULTRON/ and https://lcduc.github.io/ULTRON/privacy.html (served from `docs/`), with authorized domain `lcduc.github.io`. In *Testing* status, Google expires the saved access after 7 days. The app stays unverified, which is fine for your own use: at sign-in, click *Advanced → Go to Ultron (unsafe)*. With a company Google Workspace account, choose *Internal* instead; nothing expires, but your Workspace admin may have to allow it.
+3. **Clients → Create client → Desktop app.** Download the JSON file.
+4. On this PC, run `python scripts/google-auth.py <downloaded.json>`. Sign in, allow calendar access, and the script writes `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REFRESH_TOKEN` into `compose/.env`. Delete the downloaded JSON afterwards.
+5. `docker compose up -d open-webui` in `compose\` so the container picks up the new values.
+6. Open WebUI → **Workspace → Tools → +**, paste `tools/google_calendar.py`, save with id `google_calendar`.
+7. **Admin → Settings → Models**, edit `ultron`, `ultron-think` and `ultron-agent`, and tick *Google Calendar* under Tools so it is always on.
+
+**How access is kept:** the refresh token in `compose/.env` lets the tool get a fresh one-hour access token whenever it needs one. You sign in again only if you revoke access at https://myaccount.google.com/permissions, the app is left in *Testing* status (7 days), or the token goes unused for 6 months. The tool then answers "Google sign-in failed"; rerun step 4 and 5.
+
+**Limits on what it may do:** the token can only touch calendar events (scope `calendar.events`). Valves on the tool (Workspace → Tools → gear): calendar id, time zone override (default: the calendar's own), default length (60 min) and reminder (30 min). By default it can move or delete only events it created itself; set `ALLOW_CHANGING_OTHER_EVENTS` to change that. It refuses to add events in the past unless the user confirms, which catches wrong date arithmetic by the model.
+
+**How the bot handles incomplete requests:** the instructions in the tool's docstrings tell the model to ask when the day or time is missing or vague, never to ask for an end time but to estimate a typical length (haircut 45 min, dinner 90 min, and so on), and to use all-day events for birthdays or trips. The tool backs this up in code, because a small model does not always follow instructions. It refuses a date without a time unless `all_day` is set, adds nothing when the same event is already there, and stops on a clash with another timed event until the user agrees to the overlap.
 
 ## Open WebUI settings made in the admin pages
 

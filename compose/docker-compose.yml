@@ -49,6 +49,10 @@ services:
       ENABLE_LOCAL_WEB_FETCH: "false"
       # Stop a looping model after 8 tool rounds.
       CHAT_RESPONSE_MAX_TOOL_CALL_ITERATIONS: "8"
+      # Google Calendar tool (tools/google_calendar.py). Written by scripts/google-auth.py.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
     healthcheck:
       test: ["CMD-SHELL", "curl --silent --fail http://localhost:8080/health || exit 1"]
       interval: 30s
