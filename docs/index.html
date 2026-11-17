@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ultron — self-hosted AI assistant</title>
+<meta name="description" content="Ultron is a self-hosted personal AI assistant that runs local language models on one home PC: chat, web search, an agent sandbox, image generation and a Google Calendar tool.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23c2410c'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='white' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='2' fill='white'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --surface-2: #f0eee9;
+    --text: #1c1b19;
+    --muted: #5d5a54;
+    --border: #e2dfd8;
+    --accent: #c2410c;
+    --accent-soft: #fdeee6;
+    --accent-text: #9a3412;
+    --on-accent: #ffffff;
+    --code-bg: #efece6;
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141312;
+      --surface: #1d1c1a;
+      --surface-2: #262422;
+      --text: #ece9e4;
+      --muted: #a39f97;
+      --border: #34312d;
+      --accent: #f97316;
+      --accent-soft: #3a2216;
+      --accent-text: #fdba74;
+      --on-accent: #1c1b19;
+      --code-bg: #2a2825;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    overflow-wrap: break-word;
+  }
+  a { color: var(--accent-text); }
+  a:hover { color: var(--accent); }
+  code {
+    font: .9em ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    background: var(--code-bg);
+    padding: .1em .35em;
+    border-radius: 4px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+  header.site {
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  header.site .wrap {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; min-height: 56px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--text); text-decoration: none; font-size: 1.05rem; }
+  .brand:hover { color: var(--text); }
+  .logo { width: 28px; height: 28px; flex: none; }
+  nav.links { display: flex; gap: 16px; font-size: .95rem; }
+  nav.links a { color: var(--muted); text-decoration: none; }
+  nav.links a:hover { color: var(--text); }
+
+  .hero { padding: 56px 0 40px; }
+  .eyebrow { color: var(--accent-text); font-weight: 600; font-size: .85rem; letter-spacing: .06em; text-transform: uppercase; margin: 0 0 8px; }
+  h1 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.1; margin: 0 0 16px; letter-spacing: -.02em; }
+  .lede { font-size: 1.15rem; color: var(--muted); max-width: 40em; margin: 0 0 24px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px; border-radius: 8px; font-weight: 600; text-decoration: none;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .btn.primary:hover { color: var(--on-accent); filter: brightness(1.08); }
+  .btn:hover { color: var(--text); border-color: var(--muted); }
+  .btn svg { width: 18px; height: 18px; flex: none; }
+
+  section { padding: 40px 0; border-top: 1px solid var(--border); }
+  h2 { font-size: 1.6rem; margin: 0 0 8px; letter-spacing: -.01em; }
+  .section-intro { color: var(--muted); margin: 0 0 24px; max-width: 42em; }
+  h3 { font-size: 1.05rem; margin: 0 0 6px; }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px; box-shadow: var(--shadow);
+  }
+  .card p { margin: 0; color: var(--muted); font-size: .95rem; }
+  .card .tag { display: inline-block; font-size: .75rem; font-weight: 600; color: var(--accent-text); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; margin-bottom: 10px; }
+
+  /* Diagram */
+  .diagram { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+  .node {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; box-shadow: var(--shadow);
+  }
+  .node .title { font-weight: 700; }
+  .node .sub { color: var(--muted); font-size: .9rem; }
+  .node.hl { border-color: var(--accent); }
+  .arrow { display: flex; justify-content: center; height: 32px; }
+  .arrow::before { content: ""; width: 2px; height: 100%; background: var(--muted); opacity: .5; }
+  .branches { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+  .lane { background: var(--surface-2); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .lane-label { font-size: .75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .lane .node { box-shadow: none; }
+  .lane .down { text-align: center; color: var(--muted); line-height: 1; font-size: 1.1rem; margin: -4px 0; }
+  .models { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { font: .8rem ui-monospace, SFMono-Regular, Consolas, monospace; background: var(--accent-soft); color: var(--accent-text); border-radius: 6px; padding: 2px 8px; }
+  .side { margin-top: 16px; }
+  @media (max-width: 640px) {
+    .branches { grid-template-columns: 1fr; }
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: .85rem; }
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  @media (max-width: 640px) {
+    table, thead, tbody, tr, th, td { display: block; }
+    thead { display: none; }
+    tr { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    tr:last-child { border-bottom: 0; }
+    td { border: 0; padding: 2px 0; }
+    td:first-child { font-weight: 700; }
+  }
+
+  ul.features { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  ul.features li { position: relative; padding-left: 26px; color: var(--muted); }
+  ul.features li strong { color: var(--text); }
+  ul.features li::before {
+    content: ""; position: absolute; left: 4px; top: .55em; width: 10px; height: 10px; border-radius: 3px; background: var(--accent);
+  }
+
+  .example {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px;
+    display: grid; gap: 10px; max-width: 560px;
+  }
+  .bubble { padding: 10px 14px; border-radius: 12px; font-size: .95rem; max-width: 90%; }
+  .bubble.user { justify-self: end; background: var(--accent); color: var(--on-accent); border-bottom-right-radius: 4px; }
+  .bubble.bot { justify-self: start; background: var(--surface-2); border-bottom-left-radius: 4px; }
+  .cal-grid { display: grid; gap: 24px; grid-template-columns: 1fr 1fr; align-items: start; }
+  .cal-grid ul { margin: 0; padding-left: 20px; color: var(--muted); }
+  .cal-grid li { margin-bottom: 6px; }
+  @media (max-width: 760px) { .cal-grid { grid-template-columns: 1fr; } }
+
+  footer.site { border-top: 1px solid var(--border); padding: 28px 0 40px; color: var(--muted); font-size: .9rem; }
+  footer.site .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+  footer.site nav { display: flex; gap: 16px; flex-wrap: wrap; }
+  @media (max-width: 520px) { nav.links .hide-sm { display: none; } }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="./">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#c2410c"/><circle cx="16" cy="16" r="7" fill="none" stroke="#fff" stroke-width="3"/><circle cx="16" cy="16" r="2" fill="#fff"/></svg>
+      Ultron
+    </a>
+    <nav class="links" aria-label="Page">
+      <a class="hide-sm" href="#stack">Stack</a>
+      <a class="hide-sm" href="#features">Features</a>
+      <a href="https://github.com/lcduc/ULTRON">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <p class="eyebrow">Self-hosted · Local models · Open source</p>
+    <h1>A personal AI assistant that runs on one home PC.</h1>
+    <p class="lede">Ultron is a private chat assistant built from open-source parts. The language models run on a single consumer GPU, chats stay on the owner's machine, and the assistant can search the web, work in a sandbox, generate images and manage a Google Calendar.</p>
+    <div class="actions">
+      <a class="btn primary" href="https://github.com/lcduc/ULTRON">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        View the repository
+      </a>
+      <a class="btn" href="#how">How it fits together</a>
+    </div>
+  </div>
+
+  <section id="what">
+    <div class="wrap">
+      <h2>What it is</h2>
+      <p class="section-intro">Ultron is one person's assistant, set up and documented so it can be rebuilt from the repository. It is not a hosted service: there are no accounts to sign up for, and the only user is the owner.</p>
+      <div class="grid">
+        <div class="card">
+          <span class="tag">Local</span>
+          <h3>Models on your own GPU</h3>
+          <p>A llama.cpp server runs the models natively on the PC. Nothing is sent to a cloud model provider.</p>
+        </div>
+        <div class="card">
+          <span class="tag">Private</span>
+          <h3>Only reachable by its owner</h3>
+          <p>Every service listens on localhost. The chat UI is reached from a phone or laptop over a private Tailscale network, never the open internet.</p>
+        </div>
+        <div class="card">
+          <span class="tag">Reproducible</span>
+          <h3>Pinned, scripted, backed up</h3>
+          <p>Container versions are pinned in Docker Compose, start-up runs from a script, and a daily backup keeps the last 14 copies.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <h2>How it fits together</h2>
+      <p class="section-intro">The chat UI is the front door. Model requests go through a gateway to the local model server; tools give the assistant search, a sandbox, images and a calendar.</p>
+
+      <div class="diagram" role="img" aria-label="Diagram: your devices connect over Tailscale to Open WebUI. Open WebUI sends model requests through the LiteLLM gateway to the llama.cpp model server, which serves ultron, ultron-think and ultron-agent. Open WebUI also uses tools: SearXNG web search, the Open Terminal agent sandbox with the ComfyUI skill through the GPU broker, the Google Calendar tool, and an in-browser code interpreter. Prometheus, Grafana and Uptime Kuma monitor the stack.">
+        <div class="node">
+          <div class="title">Your phone, laptop or browser</div>
+          <div class="sub">Private Tailscale network with HTTPS</div>
+        </div>
+        <div class="arrow" aria-hidden="true"></div>
+        <div class="node hl">
+          <div class="title">Open WebUI — chat interface</div>
+          <div class="sub">Login, chat history, model picker, tool calling</div>
+        </div>
+        <div class="arrow" aria-hidden="true"></div>
+        <div class="branches">
+          <div class="lane">
+            <div class="lane-label">Models</div>
+            <div class="node">
+              <div class="title">LiteLLM gateway</div>
+              <div class="sub">API keys, token usage logs (Postgres)</div>
+            </div>
+            <div class="down" aria-hidden="true">↓</div>
+            <div class="node">
+              <div class="title">llama.cpp server, router mode</div>
+              <div class="sub">One model in VRAM at a time; swaps on demand</div>
+              <div class="models"><span class="chip">ultron</span><span class="chip">ultron-think</span><span class="chip">ultron-agent</span></div>
+            </div>
+          </div>
+          <div class="lane">
+            <div class="lane-label">Tools</div>
+            <div class="node">
+              <div class="title">Web search</div>
+              <div class="sub">SearXNG, internal to the stack</div>
+            </div>
+            <div class="node">
+              <div class="title">Agent sandbox</div>
+              <div class="sub">Open Terminal: shell and files in a container</div>
+            </div>
+            <div class="down" aria-hidden="true">↓</div>
+            <div class="node">
+              <div class="title">ComfyUI skill + GPU broker</div>
+              <div class="sub">Frees the GPU for image jobs, then hands it back</div>
+            </div>
+            <div class="node">
+              <div class="title">Google Calendar tool</div>
+              <div class="sub">Adds, lists, moves and deletes events</div>
+            </div>
+          </div>
+        </div>
+        <div class="node side">
+          <div class="title">Monitoring</div>
+          <div class="sub">Prometheus, Grafana dashboard, GPU exporter and Uptime Kuma alerts</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="stack">
+    <div class="wrap">
+      <h2>The stack</h2>
+      <p class="section-intro">Every component is free and open source, and runs on one Windows PC with Docker Desktop.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Piece</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td>Open WebUI</td><td>Chat UI with login and history. Sign-ups are disabled; telemetry and community sharing are off.</td></tr>
+            <tr><td>llama.cpp server</td><td>Runs the models natively on the GPU in router mode: one model is loaded at a time and it swaps when a chat picks a different one. API key required.</td></tr>
+            <tr><td>LiteLLM gateway</td><td>One OpenAI-compatible endpoint in front of the model server, with keys and per-request token logs stored in Postgres.</td></tr>
+            <tr><td>SearXNG</td><td>Private metasearch used for web search. No published port; only the chat UI can reach it.</td></tr>
+            <tr><td>Open Terminal</td><td>The agent's sandbox: a shell and files inside a container that sees only its own home folder and one workspace folder.</td></tr>
+            <tr><td>GPU broker + ComfyUI</td><td>A small local broker unloads the chat model before an image job and frees ComfyUI's memory after it, so both share one GPU.</td></tr>
+            <tr><td>Google Calendar tool</td><td>Lets the assistant manage the owner's calendar from plain-language requests.</td></tr>
+            <tr><td>Prometheus, Grafana, Uptime Kuma</td><td>Metrics, an “Ultron” dashboard with GPU temperature and memory, and uptime alerts.</td></tr>
+            <tr><td>Tailscale</td><td>Private, encrypted access from the owner's own devices.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="models">
+    <div class="wrap">
+      <h2>Models</h2>
+      <p class="section-intro">Three names appear in the model picker. Speeds were measured on the owner's PC with a 12 GB consumer GPU.</p>
+      <div class="grid">
+        <div class="card">
+          <span class="tag">Fast chat</span>
+          <h3><code>ultron</code></h3>
+          <p>Gemma 4 12B with a 24k context and thinking off. About 37 tokens/s, fully on the GPU, loaded at start-up.</p>
+        </div>
+        <div class="card">
+          <span class="tag">Reasoning</span>
+          <h3><code>ultron-think</code></h3>
+          <p>The same loaded model with step-by-step reasoning switched on. Same speed, with several hundred extra tokens per answer.</p>
+        </div>
+        <div class="card">
+          <span class="tag">Agent</span>
+          <h3><code>ultron-agent</code></h3>
+          <p>Qwen3.6-35B-A3B, a mixture-of-experts model with a 32k context, partly on the CPU. About 45–50 tokens/s; around 30 s to swap in.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <h2>Features</h2>
+      <p class="section-intro">What the assistant can do today.</p>
+      <ul class="features">
+        <li><strong>Local chat</strong> with a fast model and a reasoning mode, switchable per chat.</li>
+        <li><strong>Agent model</strong> for multi-step work, with native function calling and a limit of 8 tool rounds per answer.</li>
+        <li><strong>Web search</strong> through a private SearXNG instance; fetched pages can't point the assistant at the local network.</li>
+        <li><strong>Code interpreter</strong> that runs Python in the browser (Pyodide), never on the PC.</li>
+        <li><strong>Agent sandbox</strong> with a shell and a workspace folder, cut off from the database, gateway and monitoring containers.</li>
+        <li><strong>Image generation and editing</strong> through ComfyUI workflow templates, with parameters checked before a job is queued.</li>
+        <li><strong>GPU sharing</strong>: the chat model steps aside for image jobs and reloads by itself on the next message.</li>
+        <li><strong>Google Calendar</strong>: add, list, move and delete events by asking in plain language.</li>
+        <li><strong>Access from anywhere</strong> on the owner's devices over Tailscale, with HTTPS.</li>
+        <li><strong>Monitoring and alerts</strong> for token usage, GPU temperature and memory, and service uptime.</li>
+        <li><strong>Daily backups</strong> of chats, dashboards, gateway data and secrets, 14 copies kept.</li>
+        <li><strong>Test scripts</strong> for tool use, model modes and agent-model benchmarks.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="calendar">
+    <div class="wrap">
+      <h2>Calendar assistant</h2>
+      <p class="section-intro">A Google Calendar tool lets the assistant handle events the way you would describe them to a person.</p>
+      <div class="cal-grid">
+        <div class="example" aria-label="Example conversation">
+          <div class="bubble user">Haircut at 1pm Sunday, remind me.</div>
+          <div class="bubble bot">Added “Haircut” on Sunday, 1:00–2:00 pm, with a reminder before it starts.</div>
+          <div class="bubble user">Move it to 3.</div>
+          <div class="bubble bot">Moved to 3:00–4:00 pm.</div>
+        </div>
+        <ul>
+          <li>Adds, lists, moves and deletes events from plain-language requests.</li>
+          <li>Asks when the time is missing instead of guessing.</li>
+          <li>Fills in a typical end time when only a start is given.</li>
+          <li>Sets reminders and warns about clashes with existing events.</li>
+          <li>Changes or deletes only events the assistant created itself.</li>
+          <li>Access is limited to calendar events; see the <a href="privacy.html">privacy policy</a>.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="source">
+    <div class="wrap">
+      <h2>Source</h2>
+      <p class="section-intro">The Compose stack, model-server scripts, gateway and monitoring configuration, ComfyUI skill and the full runbook are on GitHub under the MIT licence.</p>
+      <div class="actions">
+        <a class="btn primary" href="https://github.com/lcduc/ULTRON">github.com/lcduc/ULTRON</a>
+        <a class="btn" href="https://github.com/lcduc/ULTRON/blob/main/README.md">Read the runbook</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Ultron — a self-hosted personal assistant.</span>
+    <nav aria-label="Footer">
+      <a href="privacy.html">Privacy policy</a>
+      <a href="https://github.com/lcduc/ULTRON">GitHub</a>
+      <a href="https://github.com/lcduc/ULTRON/issues">Contact</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>
