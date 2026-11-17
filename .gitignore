@@ -5,3 +5,4 @@ logs/
 .env
 *.gguf
 monitoring/secrets/
+__pycache__/
