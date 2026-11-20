@@ -4,7 +4,7 @@ Usage (on this PC, from the repository root):
     python scripts/google-auth.py path/to/client_secret.json
 
 The JSON is the OAuth client you download from Google Cloud Console (type "Desktop app").
-The script opens your browser, you approve calendar access, and it writes
+The script opens your browser, you approve calendar, tasks and Gmail access, and it writes
 GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and GOOGLE_REFRESH_TOKEN into compose/.env.
 It never prints those values. Then recreate the chat UI container:
     docker compose up -d open-webui      (in compose/)
@@ -25,7 +25,10 @@ import urllib.request
 import webbrowser
 from pathlib import Path
 
-SCOPE = "https://www.googleapis.com/auth/calendar.events"
+G = "https://www.googleapis.com/auth/"
+# Calendar events, Tasks, and Gmail: read, create drafts, and send (send is used only by the
+# background briefing job, which can mail only your own address).
+SCOPES = [G + "calendar.events", G + "tasks", G + "gmail.readonly", G + "gmail.compose", G + "gmail.send"]
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 ENV_FILE = Path(__file__).resolve().parent.parent / "compose" / ".env"
@@ -61,7 +64,7 @@ def get_code(client_id: str):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            msg = "Ultron is connected to Google Calendar. You can close this tab." if ok else \
+            msg = "Ultron is connected to Google. You can close this tab." if ok else \
                 "Something went wrong; check the terminal."
             self.wfile.write(f"<p style='font-family:sans-serif'>{msg}</p>".encode())
 
@@ -74,7 +77,7 @@ def get_code(client_id: str):
         "client_id": client_id,
         "redirect_uri": redirect_uri,
         "response_type": "code",
-        "scope": SCOPE,
+        "scope": " ".join(SCOPES),
         "access_type": "offline",
         "prompt": "consent",
         "state": state,
@@ -114,8 +117,11 @@ def exchange(client_id, client_secret, code, verifier, redirect_uri):
             tokens = json.load(r)
     except urllib.error.HTTPError as e:
         sys.exit(f"Token exchange failed: {e.code} {e.read().decode(errors='replace')[:300]}")
-    if SCOPE not in tokens.get("scope", ""):
-        sys.exit("Calendar access was not granted. Run again and tick the calendar permission.")
+    granted = tokens.get("scope", "").split()
+    missing = [x.replace(G, "") for x in SCOPES if x not in granted]
+    if missing:
+        sys.exit("These permissions were not granted: " + ", ".join(missing) +
+                 ". Run again and tick every box on Google's permission screen.")
     if "refresh_token" not in tokens:
         sys.exit("Google did not return a refresh token. Remove 'Ultron' at "
                  "https://myaccount.google.com/permissions and run again.")
@@ -129,6 +135,14 @@ def check(access_token):
     )
     with urllib.request.urlopen(req, timeout=30) as r:
         data = json.load(r)
+    # Also make one harmless read call per service, so a disabled API shows up now.
+    for name, url in (("Google Tasks API", "https://tasks.googleapis.com/tasks/v1/users/@me/lists?maxResults=1"),
+                      ("Gmail API", "https://gmail.googleapis.com/gmail/v1/users/me/profile")):
+        try:
+            urllib.request.urlopen(urllib.request.Request(
+                url, headers={"Authorization": f"Bearer {access_token}"}), timeout=30).close()
+        except urllib.error.HTTPError as e:
+            print(f"Warning: {name} answered {e.code}. Enable it in Google Cloud Console > APIs & Services > Library.")
     return data.get("summary"), data.get("timeZone")
 
 

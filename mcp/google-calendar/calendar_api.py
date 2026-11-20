@@ -7,14 +7,14 @@ Ported from tools/google_calendar.py (the Open WebUI tool), with the same behavi
 """
 
 import os
-import time
 from datetime import date, datetime, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
 
 import requests
 
-TOKEN_URL = "https://oauth2.googleapis.com/token"
+from google_auth import GoogleSession
+
 API = "https://www.googleapis.com/calendar/v3"
 # Private extended property marking events the assistant created.
 MARK_KEY = "createdBy"
@@ -30,71 +30,24 @@ def _env_bool(name: str, default: bool) -> bool:
 
 
 class Calendar:
-    def __init__(self):
+    def __init__(self, session: Optional[GoogleSession] = None):
         # Settings come from environment variables (set in compose/docker-compose.yml).
-        self.client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
-        self.client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-        self.refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN", "")
+        self.session = session or GoogleSession(CalendarError, "Google Calendar")
         self.calendar_id = os.environ.get("CALENDAR_ID", "primary")
         self.timezone = os.environ.get("CALENDAR_TIMEZONE", "")
         self.default_duration = int(os.environ.get("DEFAULT_DURATION_MINUTES", "60"))
         self.default_reminders = os.environ.get("DEFAULT_REMINDER_MINUTES", "30")
         self.allow_changing_others = _env_bool("ALLOW_CHANGING_OTHER_EVENTS", False)
-        self._token: Optional[str] = None
-        self._token_expiry = 0.0
         self._tz_name: Optional[str] = None
 
     # ------------------------------------------------------------------ Google sign-in and HTTP
 
-    def _get_token(self) -> str:
-        """Swap the long-lived refresh token for a one-hour access token, and cache it."""
-        if self._token and time.time() < self._token_expiry - 60:
-            return self._token
-        if not (self.client_id and self.client_secret and self.refresh_token):
-            raise CalendarError(
-                "Google Calendar is not connected: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET or "
-                "GOOGLE_REFRESH_TOKEN is missing in the calendar-mcp container. Tell the user to run "
-                "scripts/google-auth.py and restart the container."
-            )
-        r = requests.post(
-            TOKEN_URL,
-            data={
-                "client_id": self.client_id,
-                "client_secret": self.client_secret,
-                "refresh_token": self.refresh_token,
-                "grant_type": "refresh_token",
-            },
-            timeout=20,
-        )
-        if r.status_code != 200:
-            detail = r.json().get("error", r.text[:200]) if r.content else r.status_code
-            raise CalendarError(
-                f"Google sign-in failed ({detail}). The saved permission has probably expired or "
-                "been revoked. Tell the user to run scripts/google-auth.py again."
-            )
-        data = r.json()
-        self._token = data["access_token"]
-        self._token_expiry = time.time() + int(data.get("expires_in", 3600))
-        return self._token
-
     def _call(self, method: str, path: str, params=None, body=None) -> dict:
-        """One Calendar API request. Retries once with a fresh token if Google says 401."""
+        """One Calendar API request. Token handling and 401 retry live in google_auth.py."""
         url = f"{API}/calendars/{requests.utils.quote(self.calendar_id, safe='')}{path}"
-        for attempt in range(2):
-            headers = {"Authorization": f"Bearer {self._get_token()}"}
-            r = requests.request(method, url, params=params, json=body, headers=headers, timeout=20)
-            if r.status_code == 401 and attempt == 0:
-                self._token = None
-                continue
-            break
+        r = self.session.request(method, url, params=params, body=body, service="Google Calendar", error_cls=CalendarError)
         if r.status_code == 204:
             return {}
-        if r.status_code >= 400:
-            try:
-                msg = r.json()["error"]["message"]
-            except Exception:
-                msg = r.text[:300]
-            raise CalendarError(f"Google Calendar error {r.status_code}: {msg}")
         return r.json()
 
     # ------------------------------------------------------------------ helpers
