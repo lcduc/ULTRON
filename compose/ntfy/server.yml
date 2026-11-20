@@ -1,0 +1,17 @@
+# ntfy server for phone pushes. No secrets here: base-url, the user, its password, the
+# access token and the topic come from environment variables set in docker-compose.yml.
+listen-http: ":80"
+behind-proxy: true
+
+# Needed for iPhone pushes: the ntfy.sh relay only wakes the app. It receives the message
+# id and the topic hash, never the text, which the phone then fetches from this server.
+upstream-base-url: "https://ntfy.sh"
+
+# Nobody can read or publish without a user or token.
+auth-default-access: "deny-all"
+auth-file: "/var/lib/ntfy/user.db"
+cache-file: "/var/lib/ntfy/cache.db"
+cache-duration: "24h"
+attachment-cache-dir: ""
+enable-signup: false
+enable-login: false

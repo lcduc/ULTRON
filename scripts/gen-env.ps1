@@ -51,6 +51,45 @@ if (-not (Test-Path -LiteralPath $envFile)) {
     $written += $envFile
 }
 
+# Phone push settings (ntfy). Added to an existing .env when missing; never overwrites values.
+function New-RandomString([int]$len, [string]$alphabet) {
+    $buf = New-Object byte[] $len
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $rng.GetBytes($buf) } finally { $rng.Dispose() }
+    return (($buf | ForEach-Object { $alphabet[$_ % $alphabet.Length] }) -join '')
+}
+$lines = [System.IO.File]::ReadAllLines($envFile)
+$ntfyAdd = @()
+function Test-Missing([string]$name) {
+    $v = Get-EnvValue $lines $name
+    return ([string]::IsNullOrEmpty($v) -or $v -match 'change-me|<pc-name>')
+}
+# Existing line with a placeholder value is replaced; a missing line is appended.
+function Set-EnvLine([string]$name, [string]$value) {
+    $script:lines = @($script:lines | Where-Object { $_ -notmatch ('^' + [regex]::Escape($name) + '=') })
+    $script:lines += ($name + '=' + $value)
+}
+$changed = $false
+if (Test-Missing 'ULTRON_PUBLIC_URL') {
+    $host_ = $null
+    $ts = 'C:\Program Files\Tailscale	ailscale.exe'
+    if (Test-Path $ts) {
+        try { $host_ = ((& $ts status --json | ConvertFrom-Json).Self.DNSName).TrimEnd('.') } catch { }
+    }
+    if ($host_) {
+        Set-EnvLine 'ULTRON_PUBLIC_URL' ('https://' + $host_)
+        Set-EnvLine 'NTFY_BASE_URL' ('https://' + $host_ + ':8443')
+        $changed = $true
+    } else { Write-Host 'Tailscale not found: set ULTRON_PUBLIC_URL and NTFY_BASE_URL in compose\.env by hand.' }
+}
+if (Test-Missing 'NTFY_PASSWORD') { Set-EnvLine 'NTFY_PASSWORD' (New-HexSecret 16); $changed = $true }
+if (Test-Missing 'NTFY_TOKEN')    { Set-EnvLine 'NTFY_TOKEN' ('tk_' + (New-RandomString 29 'abcdefghijklmnopqrstuvwxyz0123456789')); $changed = $true }
+if (Test-Missing 'NTFY_TOPIC')    { Set-EnvLine 'NTFY_TOPIC' ('ultron-' + (New-HexSecret 8)); $changed = $true }
+if ($changed) {
+    [System.IO.File]::WriteAllText($envFile, (($lines -join "`n") + "`n"), $utf8)
+    $written += ($envFile + ' (phone push settings)')
+}
+
 # (Re)generate missing secret files from .env
 $lines = [System.IO.File]::ReadAllLines($envFile)
 if (-not (Test-Path -LiteralPath $secretsDir)) { New-Item -ItemType Directory -Path $secretsDir | Out-Null }

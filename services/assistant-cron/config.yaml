@@ -1,0 +1,49 @@
+# Settings for the morning briefing and evening preview.
+# After editing, restart the job: docker compose up -d --force-recreate assistant-cron
+# (run from the compose folder). Test without waiting: see README, "Morning briefing and phone pushes".
+
+timezone: Asia/Ho_Chi_Minh
+
+# Local time (24 h, HH:MM) each briefing is sent. Set a time to "" to turn that briefing off.
+times:
+  morning: "07:00"
+  evening: "21:00"
+
+# Which parts go into each briefing. Morning covers today; evening covers tomorrow.
+sections:
+  morning:
+    calendar: true
+    tasks: true
+    mail: true
+    weather: true
+    news: true
+  evening:
+    calendar: true
+    tasks: true
+    mail: false
+    weather: true
+    news: false
+
+# Days with no briefing, by English name, e.g. [Saturday, Sunday]. Empty = every day.
+quiet_days: []
+
+city:
+  name: Hanoi
+  latitude: 21.0285
+  longitude: 105.8542
+
+# ntfy = push to the phone (falls back to email if ntfy fails). email = Gmail to yourself only.
+channel: ntfy
+
+# Chat model that writes the text (a name served by the gateway).
+model: ultron
+
+news_count: 3
+# Search words for the headlines (SearXNG news category, last day).
+news_query: "world news headlines"
+mail_max_unread: 15
+mail_top: 5
+
+# The model is retried for this long (GPU busy, model loading) before a plain list is sent.
+model_wait_minutes: 30
+model_timeout_seconds: 180
