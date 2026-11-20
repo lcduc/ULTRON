@@ -79,6 +79,28 @@ services:
       start_period: 30s
     logging: *default-logging
 
+  # Google Calendar as an MCP server (mcp/google-calendar). Open WebUI connects to it at
+  # http://calendar-mcp:8000/mcp with CALENDAR_MCP_API_KEY. No published port, and not on
+  # the agent network, so the sandbox cannot reach it.
+  calendar-mcp:
+    build: ../mcp/google-calendar
+    image: ultron/calendar-mcp:1.0.0
+    restart: unless-stopped
+    environment:
+      MCP_API_KEY: ${CALENDAR_MCP_API_KEY}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
+    read_only: true
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    logging: *default-logging
+
   # Sandbox for the agent: shell, files and code execution inside this container.
   # Sees only its own home volume and the workspace folder. No published port and
   # no Docker socket; Open WebUI reaches it at http://open-terminal:8000.

@@ -66,6 +66,14 @@ Test scripts: `scripts/test-tools.ps1`, `scripts/test-modes.ps1`, `scripts/test-
 
 **How the bot handles incomplete requests:** the instructions in the tool's docstrings tell the model to ask when the day or time is missing or vague, never to ask for an end time but to estimate a typical length (haircut 45 min, dinner 90 min, and so on), and to use all-day events for birthdays or trips. The tool backs this up in code, because a small model does not always follow instructions. It refuses a date without a time unless `all_day` is set, adds nothing when the same event is already there, and stops on a clash with another timed event until the user agrees to the overlap.
 
+### Google Calendar over MCP (trial)
+
+`mcp/google-calendar/` is the same calendar tool rebuilt as an MCP server, to try MCP. It runs as the `calendar-mcp` container and reuses the Google credentials above. `calendar_api.py` holds the calendar logic; `server.py` publishes it as five MCP tools over Streamable HTTP at `http://calendar-mcp:8000/mcp`, behind a bearer key (`CALENDAR_MCP_API_KEY` in `compose/.env`). The container has no published port and is not on the agent network.
+
+1. Add the key to `compose/.env` (once), then build and start the container: `docker compose up -d --build calendar-mcp` in `compose\`.
+2. Open WebUI → **Admin Settings → External Tools → +**: type *MCP (Streamable HTTP)*, URL `http://calendar-mcp:8000/mcp`, auth *Bearer* with the key.
+3. On each model, turn on the new MCP tool and turn off the old *Google Calendar* tool, so the model does not see the same tools twice.
+
 ## Open WebUI settings made in the admin pages
 
 Settings saved in the admin UI live in Open WebUI's database and override `.env` values. Record changes here so a rebuild can repeat them.
@@ -74,6 +82,10 @@ Settings saved in the admin UI live in Open WebUI's database and override `.env`
 - Open Terminal connection to `http://open-terminal:8000` with the sandbox key; default terminal set on `ultron-agent` only.
 - Function Calling set to Native on all three models.
 - Web search (engine `searxng`, URL `http://searxng:8080/search`, 3 results) and code interpreter (Pyodide) enabled. These were written straight into the settings database on 2026-11-15 because the saved values overrode `.env`.
+- External Tools: MCP (Streamable HTTP) connection `http://calendar-mcp:8000/mcp`, bearer key `CALENDAR_MCP_API_KEY`, attached to `ultron` and `ultron-think` only.
+- Built-in Tools (per model, 2026-11-21): only *Time & Calculation* and *Web Search* on for `ultron` and `ultron-think`; only *Time & Calculation* on for `ultron-agent`. Each built-in tool's description is sent with every message, and with all of them on a one-line request was an 11k-token prompt (16 s) instead of 2k (2.5 s).
+- Capabilities: Vision, Memory and Terminal off on `ultron` and `ultron-think`; Web Search and Code Interpreter off on `ultron-agent`, which keeps Terminal. Web search and the terminal stay on separate models.
+- System prompts start with `Today is {{CURRENT_WEEKDAY}}, {{CURRENT_DATE}}.` Do not add `{{CURRENT_TIME}}`: it changes every minute and stops the model server from reusing the cached prompt.
 
 ## Daily operation
 
