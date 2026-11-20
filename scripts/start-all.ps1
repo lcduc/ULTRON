@@ -45,6 +45,13 @@ if (Test-Path $ts) {
     # Reset first so a renamed machine or tailnet does not leave the mapping on the old name.
     & $ts serve reset
     & $ts serve --bg 3000
+    # ntfy (phone pushes) on a second HTTPS port; the chat UI stays on the root.
+    & $ts serve --bg --https=8443 http://127.0.0.1:2586
 }
+
+# 6. Load the Whisper model in the background, so the first voice message is not the slow one.
+Start-Process powershell -WindowStyle Hidden -ArgumentList @(
+    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden',
+    '-File', (Join-Path $PSScriptRoot 'warm-voice.ps1'))
 
 Stop-Transcript | Out-Null

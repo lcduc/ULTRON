@@ -6,3 +6,4 @@ logs/
 *.gguf
 monitoring/secrets/
 __pycache__/
+compose/profile.md
