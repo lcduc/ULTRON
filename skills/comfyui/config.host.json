@@ -1,0 +1,7 @@
+{
+  "comfy_url": "http://127.0.0.1:8188",
+  "broker_url": "http://127.0.0.1:8090",
+  "broker_host_header": "127.0.0.1:8090",
+  "workspace": "F:/Documents/GitHub/Ultron-Workspace",
+  "output_dir": "F:/Documents/GitHub/Ultron-Workspace/outputs"
+}

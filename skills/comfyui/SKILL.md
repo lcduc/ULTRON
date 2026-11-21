@@ -47,6 +47,18 @@ python3 .../comfy.py run sdxl_txt2img prompt="a woman reading in a cafe"
 python3 .../comfy.py run qwen_edit image=outputs/<file from step 1> prompt="make it night time, warm lamp light"
 ```
 
+## Animating an image (video)
+
+`wan22_i2v` turns one still image into a short mp4 (16 fps). It is slow: expect several minutes
+per clip, so run one at a time and tell the user it is working. Describe the motion in the
+prompt, not the picture. `length` must be 4n+1 (49 is about 3 s, 81 about 5 s). Use 81 (the default) for finished shots; 49 only for quick tests.
+Use `width=832 height=480` for landscape; the default is portrait 480x832.
+
+```
+python3 .../comfy.py run sdxl_txt2img prompt="a woman reading in a cafe" width=832 height=1216
+python3 .../comfy.py run wan22_i2v image=outputs/<file from step 1> prompt="she turns a page and looks up, slow push-in" length=81
+```
+
 ## Adding a workflow template
 
 A template is a JSON file in `skills/comfyui/workflows/` with three keys:

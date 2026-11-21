@@ -23,11 +23,12 @@ import urllib.request
 import uuid
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-CFG = json.load(open(os.path.join(HERE, "config.json")))
+CFG = json.load(open(os.environ.get("COMFY_CONFIG") or os.path.join(HERE, "config.json")))
 COMFY = CFG["comfy_url"].rstrip("/")
 BROKER = CFG["broker_url"].rstrip("/")
 BROKER_HOST = CFG["broker_host_header"]
-OUT_DIR = CFG.get("output_dir", "/home/user/workspace/outputs")
+WORKSPACE = CFG.get("workspace", "/home/user/workspace")
+OUT_DIR = CFG.get("output_dir", WORKSPACE + "/outputs")
 WF_DIR = os.path.join(HERE, "workflows")
 
 
@@ -168,7 +169,7 @@ def cmd_run(name, pairs):
         if k in given:
             val = cast(k, spec, given[k])
             if spec.get("type") == "image":
-                val = upload(val if os.path.isabs(val) else os.path.join("/home/user/workspace", val))
+                val = upload(val if os.path.isabs(val) else os.path.join(WORKSPACE, val))
         elif spec.get("type") == "seed":
             val = random.randint(1, 2**31 - 1)
         else:
@@ -189,17 +190,30 @@ def cmd_run(name, pairs):
             result["details"] = json.loads(e.read() or b"{}")
             return result
         pid = q["prompt_id"]
-        start = time.time()
+        submitted = start = time.time()
         hist = None
-        while time.time() - start < timeout:
+        running = False
+        # The timeout counts from when this job starts running, not while it waits behind other jobs.
+        while time.time() - start < timeout and time.time() - submitted < 6 * timeout:
             h = comfy("/history/" + pid)
             if pid in h:
                 hist = h[pid]
                 break
+            if not running:
+                qs = comfy("/queue")
+                if any(it[1] == pid for it in qs.get("queue_running", [])):
+                    running, start = True, time.time()
+                else:
+                    start = time.time()
             time.sleep(2)
         if hist is None:
-            comfy("/interrupt", {})
-            result["error"] = f"timed out after {timeout} s; job interrupted"
+            # Only ever stop this job: interrupt it if it is the one running, otherwise drop it from the queue.
+            qs = comfy("/queue")
+            if any(it[1] == pid for it in qs.get("queue_running", [])):
+                comfy("/interrupt", {"prompt_id": pid})
+            else:
+                comfy("/queue", {"delete": [pid]})
+            result["error"] = f"timed out after {timeout} s of running (or {6 * timeout} s in total); job stopped"
             return result
         status = hist.get("status", {})
         if status.get("status_str") == "error":
@@ -210,9 +224,9 @@ def cmd_run(name, pairs):
         os.makedirs(OUT_DIR, exist_ok=True)
         files = []
         for node_out in hist.get("outputs", {}).values():
-            for kind in ("images", "gifs", "videos"):
+            for kind in ("images", "gifs", "videos", "audio"):
                 for item in node_out.get(kind, []):
-                    if item.get("type") == "temp":
+                    if item.get("type") in ("temp", "input"):
                         continue
                     qs = urllib.parse.urlencode({"filename": item["filename"], "subfolder": item.get("subfolder", ""), "type": item.get("type", "output")})
                     dest = os.path.join(OUT_DIR, item["filename"])

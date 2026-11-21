@@ -1,6 +1,6 @@
 # Ultron — runbook
 
-Private, unfiltered local chat assistant. Design and reasoning are in [PLAN.md](PLAN.md).
+Private, unfiltered local chat assistant. Design and reasoning are in [PLAN.md](PLAN.md). The animated-series pipeline (not built yet) is planned in [PLAN-STUDIO.md](PLAN-STUDIO.md).
 
 ## What runs where
 

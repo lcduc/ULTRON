@@ -1,0 +1,17 @@
+{
+  "description": "Frame-interpolate a video with RIFE v4.26 (default x2, so 16 fps becomes 32 fps) and save an mp4. Fast: well under a minute for a 5 s clip. Audio is not kept.",
+  "timeout_seconds": 900,
+  "params": {
+    "video": {"node": "1", "input": "file", "type": "image", "required": true, "help": "Video to interpolate: path of an mp4 in the workspace, e.g. outputs/clip.mp4"},
+    "multiplier": {"node": "4", "input": "multiplier", "type": "int", "min": 2, "max": 4, "help": "Frame multiplier. Default 2. Set fps to input fps times this."},
+    "fps": {"node": "5", "input": "fps", "type": "float", "min": 8, "max": 120, "help": "Output frame rate. Default 32 (16 fps input, multiplier 2). Keep it equal to input fps times multiplier so speed does not change."}
+  },
+  "graph": {
+    "1": {"class_type": "LoadVideo", "inputs": {"file": ""}},
+    "2": {"class_type": "GetVideoComponents", "inputs": {"video": ["1", 0]}},
+    "3": {"class_type": "FrameInterpolationModelLoader", "inputs": {"model_name": "rife_v4.26.safetensors"}},
+    "4": {"class_type": "FrameInterpolate", "inputs": {"interp_model": ["3", 0], "images": ["2", 0], "multiplier": 2}},
+    "5": {"class_type": "CreateVideo", "inputs": {"images": ["4", 0], "fps": 32.0}},
+    "6": {"class_type": "SaveVideo", "inputs": {"video": ["5", 0], "filename_prefix": "ultron_rife", "format": "auto", "codec": "auto"}}
+  }
+}
