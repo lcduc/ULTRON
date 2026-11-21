@@ -253,10 +253,19 @@ def model_text(cfg, ok, mode, day):
 
 # ---------------------------------------------------------------------------- sending
 
-def push_ntfy(title, body):
+def new_chat_url(model="ultron"):
+    """Link for tapping a push: a fresh Ultron chat with the chat model selected.
+    Open WebUI reads ?models=<id> on its new-chat page. On iPhone it opens in Safari."""
+    base = os.environ.get("ULTRON_PUBLIC_URL", "").strip().rstrip("/")
+    if not base:
+        return ""
+    return f"{base}/?models={model}"
+
+
+def push_ntfy(title, body, model="ultron"):
     url = os.environ.get("NTFY_URL", "http://ntfy:80").rstrip("/")
     payload = {"topic": os.environ["NTFY_TOPIC"], "title": title, "message": body}
-    click = os.environ.get("ULTRON_PUBLIC_URL", "").strip()
+    click = new_chat_url(model)
     if click:
         payload["click"] = click
     r = requests.post(
@@ -272,7 +281,7 @@ def push_email(title, body):
 def send(cfg, title, body):
     if cfg.get("channel", "ntfy") != "email":
         try:
-            push_ntfy(title, body)
+            push_ntfy(title, body, cfg.get("model", "ultron"))
             log.info("sent via ntfy")
             return
         except Exception as e:
@@ -298,7 +307,7 @@ def run(mode, dry_run=False, no_model=False):
         body = "Nothing to report."
     title = f"Ultron — {mode}"
     if dry_run:
-        click = os.environ.get("ULTRON_PUBLIC_URL", "")
+        click = new_chat_url(cfg.get("model", "ultron"))
         print(f"TITLE: {title}\nCLICK: {click}\n---\n{body}\n---\n({len(body)} chars)")
         return
     send(cfg, title, body)
