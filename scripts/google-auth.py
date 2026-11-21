@@ -160,10 +160,29 @@ def write_env(values: dict):
     ENV_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 
 
+def load_client_from_env():
+    """Reuse the client id and secret saved by an earlier run (no JSON file needed)."""
+    values = {}
+    if ENV_FILE.exists():
+        for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+            if "=" in line and not line.lstrip().startswith("#"):
+                k, v = line.split("=", 1)
+                values[k.strip()] = v.strip()
+    cid, secret = values.get("GOOGLE_CLIENT_ID"), values.get("GOOGLE_CLIENT_SECRET")
+    if not cid or not secret:
+        sys.exit("compose/.env has no GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET yet. "
+                 "Run once with the client JSON from Google Cloud Console instead.")
+    return cid, secret
+
+
 def main():
     if len(sys.argv) != 2:
-        sys.exit(__doc__)
-    client_id, client_secret = load_client(sys.argv[1])
+        sys.exit(__doc__ + "\nOr, to sign in again with the client saved in compose/.env:\n"
+                 "    python scripts/google-auth.py --from-env\n")
+    if sys.argv[1] == "--from-env":
+        client_id, client_secret = load_client_from_env()
+    else:
+        client_id, client_secret = load_client(sys.argv[1])
     code, verifier, redirect_uri = get_code(client_id)
     tokens = exchange(client_id, client_secret, code, verifier, redirect_uri)
     calendar, tz = check(tokens["access_token"])
