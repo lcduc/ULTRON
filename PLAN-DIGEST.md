@@ -123,10 +123,10 @@ Same pipeline with 3–5 deep reads, plus a **trends** section built from the we
 | 08:00 | W2–W6 | ~15–25 min (Sunday ~60–90 min) |
 | by ~08:30 (Sunday ~09:30) | Push: "AI digest ready" | — |
 
-- **Models:** triage and short sections on `ultron` (Gemma 12B, fast). Deep reads on `ultron-agent` (Qwen 35B-A3B, 32k context, better at long text): one swap of about 30 s each way.
-- **If you chat during the run,** your messages wait behind the current step (one request at a time). Steps are short, so the wait is seconds, except while the model swaps.
+- **Models:** triage and short sections on `ultron`, deep reads on `ultron-agent`. Since 2026-11-22 both names use the same loaded model (Qwen3.6-35B-A3B), so there is no model swap.
+- **If you chat during the run,** your messages wait behind the current step (one request at a time). Steps are short, so the wait is seconds, with no model swap in between.
 - **If ComfyUI holds the GPU,** the job waits up to 45 minutes, then sends what is ready and finishes the rest later.
-- **Memory:** the job itself is small (~300 MB). The binding limit is the agent model's ~11.6 GB of RAM; it is never loaded together with a ComfyUI video job.
+- **Memory:** the job itself is small (~300 MB). The model's ~14 GB working set is always loaded; it is never loaded together with a ComfyUI video job.
 
 ## 6. Build stages
 

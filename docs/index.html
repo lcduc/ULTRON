@@ -240,7 +240,7 @@
             <div class="down" aria-hidden="true">↓</div>
             <div class="node">
               <div class="title">llama.cpp server, router mode</div>
-              <div class="sub">One model in VRAM at a time; swaps on demand</div>
+              <div class="sub">One model, always loaded; the three names never swap it</div>
               <div class="models"><span class="chip">ultron</span><span class="chip">ultron-think</span><span class="chip">ultron-agent</span></div>
             </div>
           </div>
@@ -282,7 +282,7 @@
           <thead><tr><th>Piece</th><th>What it does</th></tr></thead>
           <tbody>
             <tr><td>Open WebUI</td><td>Chat UI with login and history. Sign-ups are disabled; telemetry and community sharing are off.</td></tr>
-            <tr><td>llama.cpp server</td><td>Runs the models natively on the GPU in router mode: one model is loaded at a time and it swaps when a chat picks a different one. API key required.</td></tr>
+            <tr><td>llama.cpp server</td><td>Runs the models natively on the GPU in router mode with one model, Qwen3.6-35B-A3B, loaded at start-up and never swapped. API key required.</td></tr>
             <tr><td>LiteLLM gateway</td><td>One OpenAI-compatible endpoint in front of the model server, with keys and per-request token logs stored in Postgres.</td></tr>
             <tr><td>SearXNG</td><td>Private metasearch used for web search. No published port; only the chat UI can reach it.</td></tr>
             <tr><td>Open Terminal</td><td>The agent's sandbox: a shell and files inside a container that sees only its own home folder and one workspace folder.</td></tr>
@@ -304,17 +304,17 @@
         <div class="card">
           <span class="tag">Fast chat</span>
           <h3><code>ultron</code></h3>
-          <p>Gemma 4 12B with a 24k context and thinking off. About 37 tokens/s, fully on the GPU, loaded at start-up.</p>
+          <p>Qwen3.6-35B-A3B, a mixture-of-experts model with 3B active parameters, a 49k context and thinking off. About 52–57 tokens/s with multi-token prediction; some expert layers run on the CPU. Loaded at start-up.</p>
         </div>
         <div class="card">
           <span class="tag">Reasoning</span>
           <h3><code>ultron-think</code></h3>
-          <p>The same loaded model with step-by-step reasoning switched on. Same speed, with several hundred extra tokens per answer.</p>
+          <p>The same loaded model with step-by-step reasoning switched on. Same speed, with extra tokens per answer.</p>
         </div>
         <div class="card">
           <span class="tag">Agent</span>
           <h3><code>ultron-agent</code></h3>
-          <p>Qwen3.6-35B-A3B, a mixture-of-experts model with a 32k context, partly on the CPU. About 45–50 tokens/s; around 30 s to swap in.</p>
+          <p>The same loaded model with thinking off, for terminal and file work. Same speed; switching to it does not swap models.</p>
         </div>
       </div>
     </div>

@@ -1,5 +1,9 @@
 model_list:
-  # Fast chat: thinking off (also the model server's default).
+  # All three names use the same loaded model (`ultron` on the model server:
+  # Qwen3.6-35B-A3B), so switching between them never swaps models. They differ
+  # only in these settings and in their Open WebUI prompts and tools.
+
+  # Chat and voice: thinking off, Qwen's non-thinking samplers (server defaults).
   - model_name: ultron
     litellm_params:
       model: openai/ultron
@@ -9,24 +13,29 @@ model_list:
         chat_template_kwargs:
           enable_thinking: false
 
-  # Same loaded model with step-by-step reasoning switched on.
+  # Same model with step-by-step reasoning on, and Qwen's thinking samplers.
   - model_name: ultron-think
     litellm_params:
       model: openai/ultron
       api_base: http://host.docker.internal:8080/v1
       api_key: os.environ/LLAMA_API_KEY
+      temperature: 1.0
+      top_p: 0.95
+      presence_penalty: 1.5
       extra_body:
+        top_k: 20
         chat_template_kwargs:
           enable_thinking: true
 
-  # Larger agent model for multi-step work. Selecting it swaps models on the GPU
-  # (about 25 s); selecting ultron again swaps back.
+  # Same model for multi-step terminal work: thinking off, no presence penalty
+  # (repeating paths and commands in tool calls is normal), long timeout.
   - model_name: ultron-agent
     litellm_params:
-      model: openai/ultron-agent
+      model: openai/ultron
       api_base: http://host.docker.internal:8080/v1
       api_key: os.environ/LLAMA_API_KEY
       timeout: 900
+      presence_penalty: 0.0
       extra_body:
         chat_template_kwargs:
           enable_thinking: false

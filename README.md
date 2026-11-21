@@ -24,13 +24,17 @@ All secrets are in `compose/.env` and `monitoring/secrets/` (git-ignored). This 
 
 ## Models
 
-The model server runs in router mode (`scripts/models.ini`): one model is in VRAM at a time and it swaps on demand when a chat uses a different model name.
+The model server runs in router mode (`scripts/models.ini`) with one preset, `ultron`. It loads at startup and is never swapped. The three names below all point to the same loaded model, so switching names does not reload anything (since 2026-11-22).
 
 | Name in the picker | Model | Measured here |
 |---|---|---|
-| `ultron` | Gemma 4 12B Heretic, 24k context, thinking off | ~37 tok/s, ~8–9 GB VRAM, loaded at startup |
-| `ultron-think` | Same loaded model with reasoning on | Same speed; several hundred extra tokens per answer |
-| `ultron-agent` | Qwen3.6-35B-A3B Heretic, 32k context, part on CPU | ~45–50 tok/s, ~10.2 GB VRAM, ~11.6 GB RAM; ~30 s to swap in, ~13 s to swap back |
+| `ultron` | Qwen3.6-35B-A3B (MoE, 3B active), Q4_K_M with MTP, 49k context, thinking off | ~52–57 tok/s with MTP (44 without), ~11.1–11.3 GB of 12 GB VRAM, ~14 GB RAM, ~25–35 s to load |
+| `ultron-think` | Same model with thinking on (temp 1.0, top-p 0.95) | Same speed; extra reasoning tokens per answer |
+| `ultron-agent` | Same model, thinking off, presence penalty 0, 900 s timeout | Same speed; used with the terminal |
+
+The model is `unsloth/Qwen3.6-35B-A3B-MTP-GGUF` (`models/Qwen3.6-35B-A3B-UD-Q4_K_M-MTP.gguf`, vision file `models/mmproj-Qwen3.6-35B-A3B-F16.gguf`). The preset uses `n-cpu-moe 28`, ubatch 1024 / batch 2048, MTP speculative decoding (`draft-mtp`, n-max 2) and the Qwen non-thinking samplers (temp 0.7, top-p 0.8, top-k 20, presence penalty 1.5). The per-name settings are in `compose/litellm-config.yaml`.
+
+The old Gemma 12B and Qwen Heretic models are kept as dormant presets (`old-gemma-12b`, `old-qwen-heretic`). They load only when requested by name, and their files stay in `models/`. Measured results and the stage logs: `PLAN-ONE-MODEL.md`, `logs/one-model-stage1.md`, `logs/one-model-stage2.md`.
 
 Test scripts: `scripts/test-tools.ps1`, `scripts/test-modes.ps1`, `scripts/test-refusals.ps1`, `scripts/bench-agent-model.ps1`.
 
@@ -39,14 +43,14 @@ Test scripts: `scripts/test-tools.ps1`, `scripts/test-modes.ps1`, `scripts/test-
 - The sandbox container can read and write only its own home volume and the workspace folder set by `AGENT_WORKSPACE` in `compose/.env`.
 - It is on its own Docker network with Open WebUI only; it cannot reach the database, gateway or monitoring containers directly.
 - It can reach the internet, and any service this PC publishes on localhost (model server, gateway, chat UI, Grafana, Uptime Kuma, Prometheus, GPU exporter). All but Prometheus and the GPU exporter require a key or login. Keep nothing private in the workspace.
-- To connect it in Open WebUI: add an Open Terminal connection with URL `http://open-terminal:8000` and the `OPEN_TERMINAL_API_KEY` value from `compose/.env`, and enable it only for `ultron-agent`.
+- To connect it in Open WebUI: add an Open Terminal connection with URL `http://open-terminal:8000` and the `OPEN_TERMINAL_API_KEY` value from `compose/.env`, and enable it only for `ultron-agent` (web search stays on `ultron` and `ultron-think`).
 
 ## Skills and the GPU broker
 
 - `skills/<app>/` holds an instruction file (`SKILL.md`) and helper scripts for each app the agent may operate. The folder is mounted read-only in the sandbox at `/home/user/workspace/skills/`.
 - `skills/comfyui/comfy.py` runs ComfyUI workflow templates (`skills/comfyui/workflows/*.json`), saves results to the workspace `outputs/` folder, and validates parameters before queueing. It never installs anything into ComfyUI and never submits arbitrary graphs.
-- `scripts/gpu-broker.ps1` (localhost port 8090, started by `start-all.ps1`) lets the helper unload the chat model before a ComfyUI job and free ComfyUI's VRAM after it. The chat model reloads by itself on the next request.
-- `scripts/model-idle.ps1` (started by `start-all.ps1`) swaps the model server back to `ultron` after `ultron-agent` has done no work for 5 minutes, so the next chat or voice message does not wait ~30 s for the swap. It skips the swap while a ComfyUI job is running or queued, and does nothing when no model is loaded. Each swap is logged in `logs/model-idle.log`.
+- `scripts/gpu-broker.ps1` (localhost port 8090, started by `start-all.ps1`) lets the helper unload the chat model before a ComfyUI job and free ComfyUI's VRAM after it. The chat model reloads by itself on the next request (~25–35 s). ComfyUI is no longer used since 2026-11-22; the broker still starts and the skill is kept.
+- `scripts/model-idle.ps1` is retired (2026-11-22): `start-all.ps1` no longer starts it, because the model is never swapped. The script is kept. It used to swap the server back to `ultron` after `ultron-agent` had been idle for 5 minutes.
 - ComfyUI must be running on port 8188 (ComfyUI Desktop → instance → Manage → Startup Args: `--port 8188`). It only serves while the Desktop app has the instance launched.
 - To add a workflow: export it from ComfyUI with File → Export (API) and wrap it as described in `skills/comfyui/SKILL.md`.
 
@@ -121,7 +125,8 @@ Settings saved in the admin UI live in Open WebUI's database and override `.env`
 - Web search (engine `searxng`, URL `http://searxng:8080/search`, 3 results) and code interpreter (Pyodide) enabled. These were written straight into the settings database on 2026-11-15 because the saved values overrode `.env`.
 - External Tools: MCP (Streamable HTTP) connection `http://calendar-mcp:8000/mcp`, bearer key `CALENDAR_MCP_API_KEY`, attached to `ultron` and `ultron-think` only.
 - Built-in Tools (per model, 2026-11-21): only *Time & Calculation* and *Web Search* on for `ultron` and `ultron-think`; only *Time & Calculation* on for `ultron-agent`. Each built-in tool's description is sent with every message, and with all of them on a one-line request was an 11k-token prompt (16 s) instead of 2k (2.5 s).
-- Capabilities: Vision and Terminal off on `ultron` and `ultron-think`; Web Search and Code Interpreter off on `ultron-agent`, which keeps Terminal. Web search and the terminal stay on separate models. Memory is on for `ultron` and `ultron-think` (see 2026-11-21 below) and off for `ultron-agent`.
+- Capabilities: Terminal off on `ultron` and `ultron-think` (Vision was off here until 2026-11-22; it is now on for all three, see below); Web Search and Code Interpreter off on `ultron-agent`, which keeps Terminal. Web search and the terminal stay on separate models. Memory is on for `ultron` and `ultron-think` (see 2026-11-21 below) and off for `ultron-agent`.
+- Vision (2026-11-22): Vision capability turned on for `ultron`, `ultron-think` and `ultron-agent`, since the one model reads images (it read a receipt correctly).
 - Audio (2026-11-21): STT engine local Whisper, model `small.en`; TTS engine OpenAI-compatible at `http://kokoro:8880/v1`, model `kokoro`, voice `am_michael`, split on punctuation.
 - System prompts start with `Today is {{CURRENT_WEEKDAY}}, {{CURRENT_DATE}}.` Do not add `{{CURRENT_TIME}}`: it changes every minute and stops the model server from reusing the cached prompt.
 - API keys (2026-11-21): `auth.enable_api_keys` turned on, so Settings → Account → API Keys appears. Admins can create a key without the per-user permission. The key is used by the chat-level tests and by `scripts/warm-voice.ps1`; save it as `ULTRON_API_KEY=` in `compose/.env`.
@@ -137,7 +142,7 @@ Two things give the bot what it knows about you. Both are plain text, and neithe
 - **Profile (small, always sent):** copy `compose/profile.example.md` to `compose/profile.md` (git-ignored), fill in your name, city, languages, work, close people, routines and answer style, and keep it under 300 tokens. Then run `python scripts/apply-profile.py`. It saves a copy of the Open WebUI database, then writes the text between `<!-- profile:start -->` and `<!-- profile:end -->` after the date line in the `ultron`, `ultron-think` and `ultron-agent` prompts. Run it again after editing the file; `--remove` takes the block out. If `compose/profile.md` is missing it changes nothing.
 - **Memories (grow over time):** the bot saves one when you say "remember…" or state a lasting fact about yourself, and searches them before saying it doesn't know something about you. To see, edit or delete them: Settings → Personalization → Memory → Manage. Memories belong to your account and stay in the Open WebUI database (so they are in the daily backup).
 - **How they reach the model:** with the Memory switch on, each new message gets a hidden recall result placed after your message (not in the system prompt): all your "user" memories (up to 2000 characters) plus the 8 closest other memories to your last messages (up to 2000 characters). It is saved with the reply, so earlier turns are replayed unchanged. The memory tool's eight functions add about 1k tokens to every prompt (a one-line request was 2.9k tokens before, 4.0k after).
-- `scripts/test-memory.ps1` checks recall (5 facts, a correction, a "forget"). It needs `ULTRON_API_KEY` and removes the memories it created.
+- `scripts/test-memory.ps1` checks recall (5 facts, a correction, a "forget"). It needs `ULTRON_API_KEY` and removes the memories it created. Known limitation (2026-11-22): it cannot pass as written. A bare `/api/chat/completions` call without a `chat_id` returns raw `tool_calls` and Open WebUI does not execute them. The script needs to create a chat first and pass `chat_id` and the assistant message id; `logs/one-model-tests/chatflow.py` shows the working flow. This is a test script issue, not a model issue: memory tools ran correctly in a real Open WebUI chat.
 
 ### Measuring the assistant
 

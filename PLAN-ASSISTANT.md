@@ -207,6 +207,19 @@ The rule is to measure first, change one thing at a time, keep a change only if 
 | Morning briefing job | Job log | — | under 60 s |
 | Free system RAM, everything running | Grafana | ~8.9 GB with the agent model loaded | stays above 4 GB |
 
+Measured 2026-11-22 after the switch to one model (Qwen3.6-35B-A3B with MTP; details in `PLAN-ONE-MODEL.md` §8). The "Known today" column above is the older Gemma state and is left as it was.
+
+| Metric | Measured 2026-11-22 | Target met |
+|---|---|---|
+| Time to first token, one-line chat | cached 0.33 s; uncached 1.38 s (Gemma: 0.43–0.51 s / 3.5–4.5 s) | yes |
+| Prompt tokens, one-line chat | 4,945 with all tools (3,680 before; Qwen's tokenizer counts more tokens) | no, over 4k |
+| Voice: model to end of first sentence | median 0.76 s | yes |
+| Right tool chosen | `test-tools.ps1` 5/5; JSON-schema output 3/3 | yes |
+| Memory | works in a real Open WebUI chat; `test-memory.ps1` cannot pass as written (needs the chat flow) | partly |
+| Morning briefing job | dry run 19.9 s | yes |
+| Free system RAM, everything running | ~3.4–3.9 GB | slightly below 4 GB |
+| Generation | ~52–57 tok/s with MTP (44 without) | yes |
+
 ### Levers, most promising first
 
 1. **Background model calls (quick win).** Open WebUI currently generates **follow-up suggestions and tags after every reply**, and a title for each new chat. The model server handles one request at a time (`parallel = 1`), so these run in turn with your next message. They also send the history in a different prompt layout, which can push the chat's cached prefix out of the single slot. Measure with follow-ups and tags off and titles kept. Expect a faster next message, especially in voice calls.
@@ -215,9 +228,9 @@ The rule is to measure first, change one thing at a time, keep a change only if 
 4. **Warm Whisper at startup.** The first transcription after a restart loads the model, which took ~15 s in the test. `start-all.ps1` sends one short silent clip after start so your first voice message is not the slow one.
 5. **Short spoken answers.** The voice-mode prompt is on (`task.voice.prompt`). Check that call answers stay to a few sentences, since every extra sentence is about a second of speech to generate.
 6. **Automatic memory review** (`memories.background_review`, every 10 turns) is an extra model call. Leave it off at first. Turn it on only if the explicit memory tool misses too much, and then at a longer interval.
-7. **No model swaps in background jobs.** The briefing uses `ultron` only. Swapping to the agent model costs ~30 s each way.
+7. **No model swaps in background jobs.** The briefing uses `ultron` only. Swapping to the agent model costs ~30 s each way. *(2026-11-22: no longer relevant. All names use one model that is never swapped; `model-idle.ps1` is retired.)*
 8. **Long chats.** Check that Open WebUI's context compaction (keeps 40 %) kicks in before the 24k limit and that a summarized chat still answers correctly.
-9. **Speed experiments (later):** multi-token prediction for the Qwen agent model (the model file keeps its MTP layers; llama.cpp support **[verify]**), and a small draft model for Gemma if VRAM allows.
+9. **Speed experiments (later):** multi-token prediction for the Qwen agent model (the model file keeps its MTP layers; llama.cpp support **[verify]**), and a small draft model for Gemma if VRAM allows. *(2026-11-22: MTP is now on for the one model, `draft-mtp` with n-max 2: ~52–57 tok/s against 44 without.)*
 
 ### Voice turn breakdown (measured 2026-11-21)
 
