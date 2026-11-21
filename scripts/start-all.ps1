@@ -32,6 +32,16 @@ if (-not $brokerRunning) {
     Write-Output "gpu broker starting"
 }
 
+# 2c. Swap back to the chat model after 5 idle minutes on the agent model
+$idleRunning = Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
+    Where-Object { $_.CommandLine -match 'model-idle\.ps1' }
+if (-not $idleRunning) {
+    Start-Process powershell -WindowStyle Hidden -ArgumentList @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden',
+        '-File', (Join-Path $PSScriptRoot 'model-idle.ps1'))
+    Write-Output "model idle watcher starting"
+}
+
 # 3. Docker Desktop (clears stale sockets first)
 & (Join-Path $PSScriptRoot 'start-docker.ps1')
 

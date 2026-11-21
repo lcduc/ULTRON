@@ -46,6 +46,7 @@ Test scripts: `scripts/test-tools.ps1`, `scripts/test-modes.ps1`, `scripts/test-
 - `skills/<app>/` holds an instruction file (`SKILL.md`) and helper scripts for each app the agent may operate. The folder is mounted read-only in the sandbox at `/home/user/workspace/skills/`.
 - `skills/comfyui/comfy.py` runs ComfyUI workflow templates (`skills/comfyui/workflows/*.json`), saves results to the workspace `outputs/` folder, and validates parameters before queueing. It never installs anything into ComfyUI and never submits arbitrary graphs.
 - `scripts/gpu-broker.ps1` (localhost port 8090, started by `start-all.ps1`) lets the helper unload the chat model before a ComfyUI job and free ComfyUI's VRAM after it. The chat model reloads by itself on the next request.
+- `scripts/model-idle.ps1` (started by `start-all.ps1`) swaps the model server back to `ultron` after `ultron-agent` has done no work for 5 minutes, so the next chat or voice message does not wait ~30 s for the swap. It skips the swap while a ComfyUI job is running or queued, and does nothing when no model is loaded. Each swap is logged in `logs/model-idle.log`.
 - ComfyUI must be running on port 8188 (ComfyUI Desktop → instance → Manage → Startup Args: `--port 8188`). It only serves while the Desktop app has the instance launched.
 - To add a workflow: export it from ComfyUI with File → Export (API) and wrap it as described in `skills/comfyui/SKILL.md`.
 
@@ -65,6 +66,8 @@ You can talk to the bot and hear its answers. Both run on the CPU, on this PC, s
 - **Speech to text:** Whisper `small.en` inside the Open WebUI container (English only). It was measured at about 1.3 s for a 5-second sentence.
 - **Text to speech:** the `kokoro` container, voice `am_michael`. It was measured at about 1 s per sentence and uses about 1 GB of RAM (capped at 3 GB).
 - **How to use it:** in a chat, the **mic** button turns speech into text in the message box. The **headphones** button starts a hands-free call: talk, pause, and the bot answers out loud. Any reply can be read aloud with its speaker icon.
+- **Voice-call instructions:** in a call, the bot follows `scripts/voice-prompt.txt`: one or two short sentences, no lists or symbols, numbers as digits. After editing the file, run `python scripts/apply-voice-prompt.py` (`--reset` goes back to Open WebUI's built-in prompt). Whisper's silence filter (`WHISPER_VAD_FILTER`) is on, so background noise is not transcribed as words.
+- **Timing (measured 2026-11-21):** after you stop talking, the call waits a fixed 2 s for silence, then speech-to-text takes ~1 s (plus ~0.3–0.7 s to convert iPhone audio), the first sentence is ready ~0.6–1.2 s later and Kokoro speaks it after ~0.7 s. That is about 4.5 s in total. The first turn of a new chat takes a few seconds longer, because the model reads the ~3.7k-token tool list once.
 - **Microphone access:** the browser allows the microphone only on `http://localhost:3000` or the Tailscale `https://` address, not on a plain `http://` LAN IP.
 - **Changing the voice:** Admin Settings → Audio → TTS Voice. The voices that start with `af_`/`am_` are American female/male and `bf_`/`bm_` are British. Each user can also choose a voice under Settings → Audio.
 

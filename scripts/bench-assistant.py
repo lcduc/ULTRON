@@ -20,7 +20,7 @@ import uuid
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GATEWAY = 'http://127.0.0.1:4000'
 LLAMA = 'http://127.0.0.1:8080'
-OWUI = 'http://localhost:3000'
+OWUI = 'http://127.0.0.1:3000'
 CONTAINER = 'ultron-open-webui-1'
 ANSI = re.compile(r'\x1b\[[0-9;]*m')
 

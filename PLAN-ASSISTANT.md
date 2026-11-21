@@ -166,6 +166,22 @@ Two ways to build it, cheapest first:
 
 Count passes, tool rounds, time and how often it got stuck. Adopt B if it passes more tasks and no task gets more than 30 % slower. Build C if B still fails the long tasks because the context runs out or the plan gets lost. Small models sometimes follow a bad plan too faithfully, which is why the replanner exists and why this is measured instead of assumed.
 
+#### Results — stage 5 (measured 2026-11-21/22) — INTERIM, run still in progress
+
+Setup: `scripts/agent-eval/run_eval.py` drives `ultron-agent` through the gateway with the terminal tools Open WebUI gives it (run_command, get_process_status, read_file, write_file, display_file; Open WebUI applies no truncation of its own). A = current prompt without the planning block, B = with it. T1–T3 use ComfyUI chains; the prompts end with "Use ComfyUI." because without it the model drew the images itself with Pillow (T1, mode A, no hint: it never read the ComfyUI skill; log kept in `logs/agent-eval/nohint/`). Runs 02:18–02:27 were cut short by a PC restart and moved to `logs/agent-eval/interrupted/`. Strict order, one run at a time, wall cap 60 min per run, 40 tool rounds.
+
+Interim table (full schedule is 3 runs per mode for T1–T3, 1 for T4; numbers below are what had finished when this was written; regenerate with `python scripts/agent-eval/run_eval.py --summary`):
+
+| Task | Mode | Runs | Pass | Avg rounds | Avg min | Used plan.py | Max prompt tokens |
+|---|---|---|---|---|---|---|---|
+| T1 image→edit | A | 1 | 1/1 | 13 | 18.4 | 0 | 10.3k |
+| T1 image→edit | B | 1 | 1/1 | 14 | 22.3 | 0 | 10.9k |
+| T2 image→animate | A | 1 | 0/1 (60 min wall cap) | 24 | 61.7 | 0 | 19.2k |
+| T2 image→animate | B | 1 | 1/1 | 27 | 30.6 | 0 | 23.1k |
+| T4 weather script | A | 1 | 1/1 | 11 | 2.2 | 0 | 4.9k |
+| T4 weather script | B | 1 | 1/1 | 4 | 0.4 | 0 | 2.8k |
+
+Observations so far: in mode B the model never called `plan.py`, not even on T2 (27 rounds), so the contract changed nothing measurable yet. The long T2 A run was lost to `comfy.py` errors (`Network is unreachable` from the sandbox to ComfyUI while a job ran), which the agent retried for an hour; that is an environment fault, not a planning difference. Prompt size reached 23k of 32k tokens on T2, so context is the limit to watch for 5b. No decision yet.
 ### Later, not now
 
 - Alerts for important mail during the day (needs a polling job and the model running often, which costs GPU time).
@@ -202,6 +218,25 @@ The rule is to measure first, change one thing at a time, keep a change only if 
 7. **No model swaps in background jobs.** The briefing uses `ultron` only. Swapping to the agent model costs ~30 s each way.
 8. **Long chats.** Check that Open WebUI's context compaction (keeps 40 %) kicks in before the 24k limit and that a summarized chat still answers correctly.
 9. **Speed experiments (later):** multi-token prediction for the Qwen agent model (the model file keeps its MTP layers; llama.cpp support **[verify]**), and a small draft model for Gemma if VRAM allows.
+
+### Voice turn breakdown (measured 2026-11-21)
+
+From the end of your speech to the first sound, warm chat, no tool call:
+
+| Step | Time | Lever |
+|---|---|---|
+| Silence wait in the call screen | 2.0 s, fixed | Hard-coded in Open WebUI's `CallOverlay` (2000 ms, -55 dB threshold). Only a patch to the built frontend can shorten it, and an upgrade would undo it. Not done. |
+| iPhone audio (AAC) to MP3 | ~0.3–0.7 s | — |
+| Whisper `small.en` | ~1.0 s | Beam 1 and 8 threads save ~0.2 s, but beam size is hard-coded in Open WebUI. Not done. |
+| Model to the first sentence | ~0.6–1.2 s | First word ~0.3 s once the prompt is cached |
+| Kokoro, first sentence | ~0.6–0.75 s | WAV would save ~0.2 s, but Open WebUI always asks for MP3 |
+
+Applied:
+- **Swap back after agent work** (`scripts/model-idle.ps1`). Before: the first message after agent work waited for `ultron` to load (37.7 s in the test). Now `ultron` is reloaded after 5 idle minutes. Tested with a 1-minute limit: the swap took 34 s and ran in the background.
+- **Voice-call instructions** (`scripts/voice-prompt.txt`). "Explain how a heat pump works" went from 87 words (~33 s of speech) to 36–44. Typical answers are now 12–33 words. Numbers must stay digits: asking for numbers in words gave a garbled "one thousand, thousand kilometers". Known quirk: it sometimes says "Let me check." without using a tool.
+- **Whisper silence filter** (`WHISPER_VAD_FILTER=true`): for accuracy with background noise, not for speed.
+
+Measurement note: on this PC, `http://localhost:` from Python adds ~2 s per request (IPv6 tried first). Benchmark scripts must use `127.0.0.1`. Tailscale serve already proxies to `127.0.0.1:3000`.
 
 ## 6. Safety boundary
 
