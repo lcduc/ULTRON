@@ -1,0 +1,8 @@
+Planning: count the steps the request needs.
+1 or 2 steps: just do it.
+3 or more: plan first. plan.py = python3 /home/user/workspace/skills/planner/plan.py (see skills/planner/SKILL.md). Run plan.py new <slug> --goal "..." --step "do X || done when Y" (max 6 steps) and show the plan in chat.
+Then one step at a time: plan.py start <n>, do it, run a command that checks its "done when", then plan.py done <n> --note "result" or plan.py fail <n> --error "...".
+Retry a failed step at most 2 times, changing something each time. On LIMIT, run plan.py replan --reason "..." --step "..." (max 2 per task) or stop. Unsure where you are: plan.py show.
+Ask the user and wait before: deleting files, a GPU job over 10 minutes, installing outside the sandbox.
+If the request starts with "plan only", stop after showing the plan.
+At the end run plan.py report and tell the user what is done, what is not, the last error and the next move.

@@ -1,0 +1,139 @@
+{
+ "specs": [
+  {
+   "name": "read_file",
+   "description": "Read a file and return its contents. Supports text files and images (PNG, JPEG, WebP, etc.). For text files you can optionally request a specific line range. Images are returned as binary so you can view and analyze them directly. Use display_file to show a file to the user.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string",
+      "description": "Path to the file to read."
+     },
+     "start_line": {
+      "type": "string",
+      "description": "First line to return (1-indexed, inclusive). Defaults to the beginning of the file."
+     },
+     "end_line": {
+      "type": "string",
+      "description": "Last line to return (1-indexed, inclusive). Defaults to the end of the file."
+     }
+    },
+    "required": [
+     "path"
+    ]
+   }
+  },
+  {
+   "name": "display_file",
+   "description": "Open a file in the user's file viewer so they can see it. Use this when the user wants to view or look at a file. This does not return file content to you — use read_file if you need to read the content yourself.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string",
+      "description": "Absolute path to the file to display."
+     }
+    },
+    "required": [
+     "path"
+    ]
+   }
+  },
+  {
+   "name": "write_file",
+   "description": "Write text content to a file. Creates parent directories automatically. Overwrites if the file already exists.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string",
+      "title": "Path",
+      "description": "Absolute or relative path to write to. Parent directories are created automatically."
+     },
+     "content": {
+      "type": "string",
+      "title": "Content",
+      "description": "Text content to write to the file."
+     }
+    },
+    "required": [
+     "path",
+     "content"
+    ]
+   }
+  },
+  {
+   "name": "run_command",
+   "description": "Run a shell command in the background and return a command ID.\n\nThis system is running Linux 6.18.33.2-microsoft-standard-WSL2 (x86_64) on 70a6e24b2e92 as user 'unknown' with /bin/bash. Python 3.12.16 is available.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "wait": {
+      "type": "string",
+      "description": "Seconds to wait for the command to finish before returning. If the command completes in time, output is included inline. Null to return immediately."
+     },
+     "tail": {
+      "type": "string",
+      "description": "Return only the last N output entries. Useful to limit response size when only recent output matters."
+     },
+     "command": {
+      "type": "string",
+      "title": "Command",
+      "description": "Shell command to execute. Supports chaining (&&, ||, ;), pipes (|), and redirections.",
+      "examples": [
+       "echo hello",
+       "ls -la && whoami"
+      ]
+     },
+     "cwd": {
+      "title": "Cwd",
+      "description": "Working directory for the command. Defaults to the server's current directory if not set.",
+      "type": "string"
+     },
+     "env": {
+      "title": "Env",
+      "description": "Extra environment variables merged into the subprocess environment.",
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object"
+     }
+    },
+    "required": [
+     "command"
+    ]
+   }
+  },
+  {
+   "name": "get_process_status",
+   "description": "Returns new output since the given offset, process status, and exit code. Reads do not consume output; each reader keeps its own offset.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "process_id": {
+      "type": "string",
+      "description": ""
+     },
+     "wait": {
+      "type": "string",
+      "description": "Seconds to wait for the process to finish before returning. Returns early if the process exits. Null to return immediately."
+     },
+     "offset": {
+      "type": "integer",
+      "description": "Number of output entries to skip. Use next_offset from the previous response to get only new output."
+     },
+     "tail": {
+      "type": "string",
+      "description": "Return only the last N output entries. Useful to limit response size when only recent output matters."
+     }
+    },
+    "required": [
+     "process_id"
+    ]
+   }
+  }
+ ],
+ "system": "You have access to a computer running Linux 6.18.33.2-microsoft-standard-WSL2 (x86_64) on host \"70a6e24b2e92\" as user 'unknown' with /bin/bash. Python 3.12.16 is available.\n\nUse your tools to directly interact with the system — run commands, read and write files, and search the filesystem. Prefer verifying the current state before making changes. When running commands, check the output to confirm success. If a command produces no output, that typically means it succeeded.\n\nWhen delivering created or updated files to the user, call display_file for each deliverable before your final response. Do not invent download links or use sandbox: URLs. After displaying the files, briefly confirm completion without repeating links.",
+ "cwd": "/home/user"
+}

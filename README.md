@@ -16,6 +16,9 @@ Private, unfiltered local chat assistant. Design and reasoning are in [PLAN.md](
 
 | Web search (SearXNG) | internal only | Used by the chat UI; no published port |
 | Agent sandbox (Open Terminal 0.17.8) | internal only | Shell and files for `ultron-agent`; sees only the workspace folder |
+| Voice (Kokoro-FastAPI 0.10.0, CPU) | internal only | The bot's spoken replies; Whisper speech-to-text runs inside Open WebUI |
+| Phone pushes (ntfy 2.37.2) | 127.0.0.1:2586; tailnet `https://<pc-name>.<tailnet>.ts.net:8443` | Needs the user/token; carries the briefings to the iPhone |
+| Briefing job (assistant-cron) | internal only | Sends the 07:00 morning briefing and 21:00 evening preview; settings in `services/assistant-cron/config.yaml` |
 
 All secrets are in `compose/.env` and `monitoring/secrets/` (git-ignored). This includes the Google Calendar refresh token, which the daily backup copies with the other secrets.
 
@@ -46,16 +49,37 @@ Test scripts: `scripts/test-tools.ps1`, `scripts/test-modes.ps1`, `scripts/test-
 - ComfyUI must be running on port 8188 (ComfyUI Desktop → instance → Manage → Startup Args: `--port 8188`). It only serves while the Desktop app has the instance launched.
 - To add a workflow: export it from ComfyUI with File → Export (API) and wrap it as described in `skills/comfyui/SKILL.md`.
 
+### Agent planning
+
+`ultron-agent` has a short planning contract at the end of its system prompt (`scripts/agent-eval/contract.txt`, about 230 tokens, static between messages). Tasks of 1 or 2 steps are done directly, as before. Tasks of 3 or more steps start with a plan of at most 6 steps, each written as "do X || done when Y". The agent then runs one step at a time, checks the "done when" with a command, retries a failed step at most 2 times, replans at most 2 times per task, and ends with a report. It asks first before deleting files, starting a GPU job over 10 minutes, or installing anything outside the sandbox. A request that starts with "plan only" stops after the plan.
+
+- `skills/planner/plan.py` keeps the plan in `workspace/tasks/<slug>/plan.json` (source of truth) and renders `PLAN.md` from it; the agent never edits the Markdown. Commands: `new <slug> --goal "..." --step "do X || done when Y" ...`, `show`, `start <n>`, `done <n> --note "..."`, `fail <n> --error "..."`, `replan --reason "..." --step "..."`, `report`. The last plan created is the default, so the slug is only given once. The third failure of a step prints `LIMIT: replan or stop`; a third replan prints `LIMIT: stop and report`. Tests: `docker exec ultron-open-terminal-1 python3 /home/user/workspace/skills/planner/tests/test_plan.py`.
+- The tool-round cap is 40 for all models (Open WebUI 0.13.3 has no per-model cap).
+- `python scripts/agent-eval/apply_contract.py` writes the contract into the Open WebUI database (after a timestamped copy); `--remove` goes back to pure ReAct. It does not touch the profile block that `scripts/apply-profile.py` puts after the date line.
+- Rerun the comparison with `python scripts/agent-eval/run_eval.py` (needs ComfyUI running and about 3 hours; runs one job at a time and logs to `logs/agent-eval/<timestamp>.jsonl`). It drives `ultron-agent` through the gateway with the same terminal tools Open WebUI gives it (mode A without the contract, mode B with it) and checks the files each run leaves in the workspace. `--runs T1:A:1,T1:B:1` picks runs, `--summary` prints the table from all logs. Results are in `PLAN-ASSISTANT.md`.
+
+## Voice
+
+You can talk to the bot and hear its answers. Both run on the CPU, on this PC, so they never take VRAM from the chat model and nothing leaves the machine.
+
+- **Speech to text:** Whisper `small.en` inside the Open WebUI container (English only). It was measured at about 1.3 s for a 5-second sentence.
+- **Text to speech:** the `kokoro` container, voice `am_michael`. It was measured at about 1 s per sentence and uses about 1 GB of RAM (capped at 3 GB).
+- **How to use it:** in a chat, the **mic** button turns speech into text in the message box. The **headphones** button starts a hands-free call: talk, pause, and the bot answers out loud. Any reply can be read aloud with its speaker icon.
+- **Microphone access:** the browser allows the microphone only on `http://localhost:3000` or the Tailscale `https://` address, not on a plain `http://` LAN IP.
+- **Changing the voice:** Admin Settings → Audio → TTS Voice. The voices that start with `af_`/`am_` are American female/male and `bf_`/`bm_` are British. Each user can also choose a voice under Settings → Audio.
+
+The audio settings live in Open WebUI's database and override the `AUDIO_*` values in `compose/docker-compose.yml`. They were written straight into the database on 2026-11-21, and the old database was saved inside the container as `webui.db.bak-before-voice`.
+
 ## Google Calendar
 
 `tools/google_calendar.py` is an Open WebUI tool. It lets the bot read your calendar and add, move or delete events with phone reminders ("I have a haircut at 1pm this Sunday, remind me"). The reminders are Google Calendar's own notifications, so they reach every phone signed in to the Google Calendar app.
 
 **One-time setup**
 
-1. In [Google Cloud Console](https://console.cloud.google.com/), create a project (e.g. "Ultron") and enable the **Google Calendar API**.
+1. In [Google Cloud Console](https://console.cloud.google.com/), create a project (e.g. "Ultron") and enable the **Google Calendar API**. For the MCP server below, also enable the **Google Tasks API** and the **Gmail API** (APIs & Services → Library).
 2. **Google Auth Platform → Branding/Audience:** set up the consent screen. With a personal Gmail account, choose *External*, add yourself as a test user, then click **Publish app** so the status reads *In production*. Publishing needs a home page and privacy policy link under Branding: use https://lcduc.github.io/ULTRON/ and https://lcduc.github.io/ULTRON/privacy.html (served from `docs/`), with authorized domain `lcduc.github.io`. In *Testing* status, Google expires the saved access after 7 days. The app stays unverified, which is fine for your own use: at sign-in, click *Advanced → Go to Ultron (unsafe)*. With a company Google Workspace account, choose *Internal* instead; nothing expires, but your Workspace admin may have to allow it.
 3. **Clients → Create client → Desktop app.** Download the JSON file.
-4. On this PC, run `python scripts/google-auth.py <downloaded.json>`. Sign in, allow calendar access, and the script writes `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REFRESH_TOKEN` into `compose/.env`. Delete the downloaded JSON afterwards.
+4. On this PC, run `python scripts/google-auth.py <downloaded.json>`. Sign in, allow every permission Google lists (calendar, tasks and Gmail; only calendar is needed for the Open WebUI tool above, the rest is for the MCP server below), and the script writes `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REFRESH_TOKEN` into `compose/.env`. Delete the downloaded JSON afterwards.
 5. `docker compose up -d open-webui` in `compose\` so the container picks up the new values.
 6. Open WebUI → **Workspace → Tools → +**, paste `tools/google_calendar.py`, save with id `google_calendar`.
 7. **Admin → Settings → Models**, edit `ultron`, `ultron-think` and `ultron-agent`, and tick *Google Calendar* under Tools so it is always on.
@@ -66,9 +90,19 @@ Test scripts: `scripts/test-tools.ps1`, `scripts/test-modes.ps1`, `scripts/test-
 
 **How the bot handles incomplete requests:** the instructions in the tool's docstrings tell the model to ask when the day or time is missing or vague, never to ask for an end time but to estimate a typical length (haircut 45 min, dinner 90 min, and so on), and to use all-day events for birthdays or trips. The tool backs this up in code, because a small model does not always follow instructions. It refuses a date without a time unless `all_day` is set, adds nothing when the same event is already there, and stops on a clash with another timed event until the user agrees to the overlap.
 
-### Google Calendar over MCP (trial)
+### Google Calendar, Tasks and Gmail over MCP (trial)
 
-`mcp/google-calendar/` is the same calendar tool rebuilt as an MCP server, to try MCP. It runs as the `calendar-mcp` container and reuses the Google credentials above. `calendar_api.py` holds the calendar logic; `server.py` publishes it as five MCP tools over Streamable HTTP at `http://calendar-mcp:8000/mcp`, behind a bearer key (`CALENDAR_MCP_API_KEY` in `compose/.env`). The container has no published port and is not on the agent network.
+`mcp/google-calendar/` is the same calendar tool rebuilt as an MCP server, to try MCP, and it now also covers Google Tasks and Gmail. It runs as the `calendar-mcp` container and reuses the Google credentials above. `google_auth.py` holds the shared sign-in, `calendar_api.py`, `tasks_api.py` and `gmail_api.py` hold the logic, and `server.py` publishes it as eleven MCP tools over Streamable HTTP at `http://calendar-mcp:8000/mcp`, behind a bearer key (`CALENDAR_MCP_API_KEY` in `compose/.env`). The container has no published port and is not on the agent network.
+
+- **Calendar (5):** `calendar_today`, `list_events`, `add_event`, `update_event`, `delete_event`.
+- **Tasks (3):** `tasks_list`, `tasks_add`, `tasks_update`. Tasks have a date at most; timed reminders belong in the calendar. "Remind me to call mom" with no day becomes a task in the list "To-do". Unknown list names are created on the first add, a duplicate open title is not added again, and a past due date is refused unless confirmed.
+- **Mail (3):** `mail_search` (Gmail search syntax), `mail_read` (plain text, cut to about 4000 characters) and `mail_draft` (a reply or a new mail). There is no tool to send or delete mail: drafts are never sent, and you review and send them from Gmail. Email text is written by strangers, so `mail_read` wraps every body in "untrusted email content" markers and the tool descriptions tell the model not to follow instructions inside it.
+- **Briefing job:** `Gmail.send_to_self` in `gmail_api.py` is for a later background job only. It is not an MCP tool, and it mails only the account's own address (looked up from the Gmail profile).
+- **Prompt size:** the eleven tools' descriptions and schemas are about 11.6k characters, up from 6.8k for the five calendar tools. They are sent with every message.
+
+**Scopes:** `scripts/google-auth.py` asks for `calendar.events`, `tasks`, `gmail.readonly`, `gmail.compose` and `gmail.send` in one sign-in, and checks that all of them were granted. The Gmail scopes are restricted: for an unverified app Google shows a warning screen, so click *Advanced → Go to Ultron (unsafe)* and tick every box. Also enable the **Google Tasks API** and the **Gmail API** in Google Cloud Console (APIs & Services → Library). A refresh token from an earlier sign-in has only the calendar scope: calendar keeps working, and the task and mail tools answer "Gmail/Tasks access is not granted yet" until you rerun `python scripts/google-auth.py <client.json>` and restart the container (`docker compose up -d calendar-mcp`).
+
+**Tests:** `python -m unittest discover tests` in `mcp/google-calendar/` (needs `pip install -r requirements.txt`, ideally in a venv). The HTTP calls are faked, so it needs no network or credentials.
 
 1. Add the key to `compose/.env` (once), then build and start the container: `docker compose up -d --build calendar-mcp` in `compose\`.
 2. Open WebUI → **Admin Settings → External Tools → +**: type *MCP (Streamable HTTP)*, URL `http://calendar-mcp:8000/mcp`, auth *Bearer* with the key.
@@ -84,8 +118,27 @@ Settings saved in the admin UI live in Open WebUI's database and override `.env`
 - Web search (engine `searxng`, URL `http://searxng:8080/search`, 3 results) and code interpreter (Pyodide) enabled. These were written straight into the settings database on 2026-11-15 because the saved values overrode `.env`.
 - External Tools: MCP (Streamable HTTP) connection `http://calendar-mcp:8000/mcp`, bearer key `CALENDAR_MCP_API_KEY`, attached to `ultron` and `ultron-think` only.
 - Built-in Tools (per model, 2026-11-21): only *Time & Calculation* and *Web Search* on for `ultron` and `ultron-think`; only *Time & Calculation* on for `ultron-agent`. Each built-in tool's description is sent with every message, and with all of them on a one-line request was an 11k-token prompt (16 s) instead of 2k (2.5 s).
-- Capabilities: Vision, Memory and Terminal off on `ultron` and `ultron-think`; Web Search and Code Interpreter off on `ultron-agent`, which keeps Terminal. Web search and the terminal stay on separate models.
+- Capabilities: Vision and Terminal off on `ultron` and `ultron-think`; Web Search and Code Interpreter off on `ultron-agent`, which keeps Terminal. Web search and the terminal stay on separate models. Memory is on for `ultron` and `ultron-think` (see 2026-11-21 below) and off for `ultron-agent`.
+- Audio (2026-11-21): STT engine local Whisper, model `small.en`; TTS engine OpenAI-compatible at `http://kokoro:8880/v1`, model `kokoro`, voice `am_michael`, split on punctuation.
 - System prompts start with `Today is {{CURRENT_WEEKDAY}}, {{CURRENT_DATE}}.` Do not add `{{CURRENT_TIME}}`: it changes every minute and stops the model server from reusing the cached prompt.
+- API keys (2026-11-21): `auth.enable_api_keys` turned on, so Settings → Account → API Keys appears. Admins can create a key without the per-user permission. The key is used by the chat-level tests and by `scripts/warm-voice.ps1`; save it as `ULTRON_API_KEY=` in `compose/.env`.
+- Background tasks (2026-11-21): follow-up suggestions and tag generation turned off (Admin Settings → Interface); title generation stays on. Follow-ups ran after every reply: 3.5 s of GPU on `ultron`, 31–35 s on `ultron-think` (its reasoning is on). With one request at a time, the next message waits for them. Tags cost 1.3 s once per chat. Titles cost 0.7 s once per chat.
+- Memory (2026-11-21): Memory capability and the Memory built-in tool turned on for `ultron` and `ultron-think` only. Automatic memory review (`memories.background_review.enable`) stays off. The Memory switch under Settings → Personalization is not set, so it follows the admin default (on).
+- System prompts (2026-11-21): `ultron` and `ultron-think` end with a memory instruction (save a memory when the user says "remember…" or states a lasting fact, delete when asked to forget, search memory before saying "I don't know" about the user, never store passwords, card or ID numbers). All three prompts get the profile block from `scripts/apply-profile.py` after the date line.
+- Agent planning (2026-11-21): the `ultron-agent` system prompt ends with a planning contract between `<!-- planning:start -->` and `<!-- planning:end -->`, written by `scripts/agent-eval/apply_contract.py` after a database copy (`webui.db.bak-<time>-planning`). It sits after the profile block. `CHAT_RESPONSE_MAX_TOOL_CALL_ITERATIONS` raised from 8 to 40 in `compose/docker-compose.yml` (Open WebUI 0.13.3 has no per-model setting; only its sub-agents set a cap per request), so it applies to all models.
+
+### Memory and profile
+
+Two things give the bot what it knows about you. Both are plain text, and neither changes between messages, so the model server keeps reusing its cached prompt.
+
+- **Profile (small, always sent):** copy `compose/profile.example.md` to `compose/profile.md` (git-ignored), fill in your name, city, languages, work, close people, routines and answer style, and keep it under 300 tokens. Then run `python scripts/apply-profile.py`. It saves a copy of the Open WebUI database, then writes the text between `<!-- profile:start -->` and `<!-- profile:end -->` after the date line in the `ultron`, `ultron-think` and `ultron-agent` prompts. Run it again after editing the file; `--remove` takes the block out. If `compose/profile.md` is missing it changes nothing.
+- **Memories (grow over time):** the bot saves one when you say "remember…" or state a lasting fact about yourself, and searches them before saying it doesn't know something about you. To see, edit or delete them: Settings → Personalization → Memory → Manage. Memories belong to your account and stay in the Open WebUI database (so they are in the daily backup).
+- **How they reach the model:** with the Memory switch on, each new message gets a hidden recall result placed after your message (not in the system prompt): all your "user" memories (up to 2000 characters) plus the 8 closest other memories to your last messages (up to 2000 characters). It is saved with the reply, so earlier turns are replayed unchanged. The memory tool's eight functions add about 1k tokens to every prompt (a one-line request was 2.9k tokens before, 4.0k after).
+- `scripts/test-memory.ps1` checks recall (5 facts, a correction, a "forget"). It needs `ULTRON_API_KEY` and removes the memories it created.
+
+### Measuring the assistant
+
+`scripts\bench-assistant.ps1 -Label <name>` takes about 5 minutes and appends one JSON line to `logs\bench-assistant.jsonl`. It reads the real system prompts and tool schemas from Open WebUI and measures: prompt tokens and time to first token of a one-line request, what the background tasks cost in GPU seconds, voice speech-to-text and text-to-speech time, `test-tools.ps1`, and free RAM and VRAM. The chat-level tests (time to first token through Open WebUI, model-server requests per reply) need an API key from Settings → Account → API Keys, saved as `ULTRON_API_KEY=` in `compose/.env` or set as an environment variable; without it they print "ULTRON_API_KEY missing" and are skipped. `scripts\warm-voice.ps1` waits for Open WebUI and loads the Whisper model so the first voice message is fast (also needs the key; without it only the disk cache is warmed).
 
 ## Daily operation
 
@@ -118,3 +171,29 @@ For llama.cpp, unpack a newer release over `bin\llama\` and re-check the flags i
 2. In the Tailscale admin console, enable MagicDNS and HTTPS certificates.
 3. Run `tailscale serve --bg 3000` once (also re-applied by `start-all.ps1`).
 4. Open `https://<pc-name>.<tailnet>.ts.net` from any of your devices.
+
+## Morning briefing and phone pushes
+
+**What runs:** two containers in `compose\`. `ntfy` is the push server (user `ultron`, one private topic, everything else denied). `assistant-cron` is a small scheduler that sends a briefing at 07:00 (today) and an evening preview at 21:00 (tomorrow), Asia/Ho_Chi_Minh time. Each briefing gathers calendar, tasks, unread mail (last 24 h), Hanoi weather (Open-Meteo, sends only the coordinates) and 3 headlines (SearXNG). The `ultron` model writes a few short lines, and ntfy pushes them with the title "Ultron — morning" or "Ultron — evening". Tapping the notification opens the chat UI (`ULTRON_PUBLIC_URL`).
+
+- If a section fails (for example mail before the Google sign-in), the briefing still goes out with a line such as `Mail: not available (...)`.
+- If the model does not answer for 30 minutes (GPU busy, model loading), a plain list without the model's summary is sent.
+- If ntfy fails, or `channel: email`, the briefing is emailed to your own Gmail address.
+- Secrets (`NTFY_PASSWORD`, `NTFY_TOKEN`, `NTFY_TOPIC`) and the addresses (`ULTRON_PUBLIC_URL`, `NTFY_BASE_URL`) are in `compose/.env`; `scripts\gen-env.ps1` adds missing ones. `start-all.ps1` publishes ntfy with `tailscale serve --bg --https=8443 http://127.0.0.1:2586`; the chat UI stays on the root.
+
+**Change times or sections:** edit `services/assistant-cron/config.yaml` (times, per-briefing sections on/off, `quiet_days`, city, `channel`, `model`), then run `docker compose up -d --force-recreate assistant-cron` in `compose\`. An empty time turns that briefing off.
+
+**Test:** in `compose\`:
+
+- `docker compose exec assistant-cron python briefing.py --run morning --dry-run` prints what it would send (it still calls the model; add `--no-model` to skip that).
+- `docker compose exec assistant-cron python briefing.py --run evening` sends one for real.
+- `docker compose logs assistant-cron` shows one line per section and how it was sent.
+- Check delivery on the server: `curl -H "Authorization: Bearer <NTFY_TOKEN>" "https://<pc-name>.<tailnet>.ts.net:8443/<NTFY_TOPIC>/json?poll=1&since=10m"`.
+
+**iPhone setup:**
+
+1. Install the ntfy app from the App Store.
+2. Settings, Default server: `https://<pc-name>.<tailnet>.ts.net:8443` (the `NTFY_BASE_URL` value).
+3. Settings, Users: add that server with user `ultron` and the `NTFY_PASSWORD` value (the app also accepts the `NTFY_TOKEN` as an access token).
+4. Subscribe to the topic (`NTFY_TOPIC`), using the default server. Allow notifications when iOS asks.
+5. In the Tailscale app, turn on VPN On Demand, so the phone can reach this PC when a push arrives (Apple's relay only wakes the app; the text is fetched from this PC over Tailscale).

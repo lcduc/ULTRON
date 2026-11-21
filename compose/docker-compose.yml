@@ -47,12 +47,25 @@ services:
       WEB_FETCH_MAX_CONTENT_LENGTH: "8000"
       # Never let fetched pages point the bot at this PC or the home network.
       ENABLE_LOCAL_WEB_FETCH: "false"
-      # Stop a looping model after 8 tool rounds.
-      CHAT_RESPONSE_MAX_TOOL_CALL_ITERATIONS: "8"
+      # Stop a looping model after 40 tool rounds (no per-model setting exists in 0.13.3; the
+      # agent planner caps tasks at 40 rounds, chat models rarely use more than a few).
+      CHAT_RESPONSE_MAX_TOOL_CALL_ITERATIONS: "40"
       # Google Calendar tool (tools/google_calendar.py). Written by scripts/google-auth.py.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
+      # Voice. Speech-to-text: local Whisper inside this container, on the CPU so it never
+      # competes with the chat model for VRAM. Text-to-speech: the kokoro container below.
+      # Nothing is sent outside this PC.
+      AUDIO_STT_ENGINE: ""
+      WHISPER_MODEL: small.en
+      WHISPER_MODEL_AUTO_UPDATE: "true"
+      AUDIO_TTS_ENGINE: openai
+      AUDIO_TTS_OPENAI_API_BASE_URL: http://kokoro:8880/v1
+      AUDIO_TTS_OPENAI_API_KEY: not-needed
+      AUDIO_TTS_MODEL: kokoro
+      AUDIO_TTS_VOICE: am_michael
+      AUDIO_TTS_SPLIT_ON: punctuation
     healthcheck:
       test: ["CMD-SHELL", "curl --silent --fail http://localhost:8080/health || exit 1"]
       interval: 30s
@@ -79,6 +92,20 @@ services:
       start_period: 30s
     logging: *default-logging
 
+  # Text-to-speech for the chat's read-aloud and voice call (Kokoro, OpenAI-compatible API).
+  # CPU only, no published port; Open WebUI reaches it at http://kokoro:8880/v1.
+  kokoro:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:v0.10.0
+    restart: unless-stopped
+    mem_limit: 3g
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8880/health', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging: *default-logging
+
   # Google Calendar as an MCP server (mcp/google-calendar). Open WebUI connects to it at
   # http://calendar-mcp:8000/mcp with CALENDAR_MCP_API_KEY. No published port, and not on
   # the agent network, so the sandbox cannot reach it.
@@ -99,6 +126,70 @@ services:
       timeout: 10s
       retries: 5
       start_period: 20s
+    logging: *default-logging
+
+  # Phone pushes (ntfy). Published on localhost only; `tailscale serve` exposes it to the
+  # tailnet on HTTPS port 8443 so the iPhone app can reach it. Needs a user or token.
+  ntfy:
+    image: binwiederhier/ntfy:v2.37.2
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/etc/ntfy/init.sh"]
+    ports:
+      - "127.0.0.1:2586:80"
+    environment:
+      NTFY_BASE_URL: ${NTFY_BASE_URL}
+      NTFY_USER: ultron
+      NTFY_PASSWORD: ${NTFY_PASSWORD}
+      NTFY_TOPIC: ${NTFY_TOPIC}
+      NTFY_AUTH_TOKENS: ultron:${NTFY_TOKEN}:assistant-cron
+    volumes:
+      - ./ntfy/server.yml:/etc/ntfy/server.yml:ro
+      - ./ntfy/init.sh:/etc/ntfy/init.sh:ro
+      - ntfy-data:/var/lib/ntfy
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:80/v1/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *default-logging
+
+  # Morning briefing (07:00) and evening preview (21:00), pushed to the phone through ntfy.
+  # Settings: services/assistant-cron/config.yaml. Reads calendar, tasks and mail through the
+  # shared code in mcp/google-calendar (mounted read-only).
+  assistant-cron:
+    build: ../services/assistant-cron
+    image: ultron/assistant-cron:1.0.0
+    restart: unless-stopped
+    environment:
+      PYTHONPATH: /mcp
+      PYTHONDONTWRITEBYTECODE: "1"
+      OPENAI_API_BASE_URL: ${OPENAI_API_BASE_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      NTFY_URL: http://ntfy:80
+      NTFY_TOPIC: ${NTFY_TOPIC}
+      NTFY_TOKEN: ${NTFY_TOKEN}
+      ULTRON_PUBLIC_URL: ${ULTRON_PUBLIC_URL:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
+    volumes:
+      - ../mcp/google-calendar:/mcp:ro
+      - ../services/assistant-cron/config.yaml:/app/config.yaml:ro
+    read_only: true
+    mem_limit: 256m
+    depends_on:
+      ntfy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys,time; sys.exit(0 if time.time()-os.path.getmtime('/tmp/heartbeat') < 300 else 1)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    tmpfs:
+      - /tmp
     logging: *default-logging
 
   # Sandbox for the agent: shell, files and code execution inside this container.
@@ -249,6 +340,7 @@ volumes:
   prometheus-data:
   grafana-data:
   uptime-kuma-data:
+  ntfy-data:
 
 networks:
   agent:
