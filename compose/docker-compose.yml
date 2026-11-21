@@ -134,6 +134,9 @@ services:
     image: binwiederhier/ntfy:v2.37.2
     restart: unless-stopped
     entrypoint: ["/bin/sh", "/etc/ntfy/init.sh"]
+    # Its own resolvers: one failed lookup of ntfy.sh drops that message's iPhone wake-up
+    # (seen once through Docker Desktop's DNS forwarder on 2026-11-21).
+    dns: [1.1.1.1, 9.9.9.9]
     ports:
       - "127.0.0.1:2586:80"
     environment:
