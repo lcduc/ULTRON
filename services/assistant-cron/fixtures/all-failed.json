@@ -1,0 +1,10 @@
+{
+ "mode": "morning",
+ "failed": [
+  "Calendar",
+  "Tasks",
+  "Mail",
+  "Weather",
+  "News"
+ ]
+}

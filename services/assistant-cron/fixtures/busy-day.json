@@ -1,0 +1,291 @@
+{
+ "mode": "morning",
+ "calendar": [
+  {
+   "title": "Company holiday",
+   "all_day": true,
+   "start": null,
+   "end": null,
+   "location": ""
+  },
+  {
+   "title": "Dentist",
+   "all_day": false,
+   "start": "09:30",
+   "end": "10:15",
+   "location": "Clinic Hoan Kiem"
+  },
+  {
+   "title": "Team sync",
+   "all_day": false,
+   "start": "14:00",
+   "end": "14:30",
+   "location": ""
+  },
+  {
+   "title": "Standup",
+   "all_day": false,
+   "start": "09:00",
+   "end": "09:15",
+   "location": ""
+  },
+  {
+   "title": "Lunch with Minh",
+   "all_day": false,
+   "start": "12:30",
+   "end": "13:30",
+   "location": "Quan An Ngon"
+  },
+  {
+   "title": "Gym",
+   "all_day": false,
+   "start": "18:00",
+   "end": "19:00",
+   "location": ""
+  },
+  {
+   "title": "Call with accountant",
+   "all_day": false,
+   "start": "16:00",
+   "end": "16:30",
+   "location": ""
+  },
+  {
+   "title": "Review pull requests",
+   "all_day": false,
+   "start": "10:30",
+   "end": "11:30",
+   "location": ""
+  },
+  {
+   "title": "Pick up parcel",
+   "all_day": false,
+   "start": "17:15",
+   "end": "17:30",
+   "location": "Post office"
+  },
+  {
+   "title": "Design review for the new onboarding flow",
+   "all_day": false,
+   "start": "15:00",
+   "end": "16:00",
+   "location": "Meeting room B"
+  }
+ ],
+ "tasks": [
+  {
+   "title": "Pay electricity bill",
+   "due": "2026-11-23",
+   "overdue": true
+  },
+  {
+   "title": "Renew car insurance",
+   "due": "2026-11-23",
+   "overdue": true
+  },
+  {
+   "title": "Send monthly report",
+   "due": "2026-11-23",
+   "overdue": false
+  },
+  {
+   "title": "Book flight to Da Nang",
+   "due": "2026-11-23",
+   "overdue": false
+  },
+  {
+   "title": "Reply to landlord",
+   "due": "2026-11-23",
+   "overdue": false
+  },
+  {
+   "title": "Buy birthday gift for Minh",
+   "due": "2026-11-23",
+   "overdue": false
+  },
+  {
+   "title": "Back up photos",
+   "due": "2026-11-23",
+   "overdue": false
+  },
+  {
+   "title": "Update CV",
+   "due": "2026-11-23",
+   "overdue": false
+  }
+ ],
+ "mail": [
+  {
+   "sender": "An Nguyen",
+   "address": "An Nguyen <an.nguyen@example.com>",
+   "subject": "Contract draft for review",
+   "snippet": "Hi, please find attached the contract draft. Could you check clause 4 before Friday?"
+  },
+  {
+   "sender": "Vietcombank",
+   "address": "Vietcombank <noreply@vcb.example>",
+   "subject": "Account statement for November",
+   "snippet": "Your monthly statement is ready to download."
+  },
+  {
+   "sender": "Medium Daily Digest",
+   "address": "Medium Daily Digest <newsletter@medium.example>",
+   "subject": "Stories for you",
+   "snippet": "Top stories picked for you this morning."
+  },
+  {
+   "sender": "Minh Tran",
+   "address": "Minh Tran <minh@example.com>",
+   "subject": "Lunch tomorrow?",
+   "snippet": "Are we still on for lunch at 12:30? I can book the table."
+  },
+  {
+   "sender": "LinkedIn",
+   "address": "LinkedIn <notifications@linkedin.example>",
+   "subject": "5 new jobs for you",
+   "snippet": "Jobs matching your profile."
+  },
+  {
+   "sender": "Landlord",
+   "address": "Landlord <landlord@example.com>",
+   "subject": "Rent receipt",
+   "snippet": "Attached is the receipt for November rent."
+  },
+  {
+   "sender": "Shopee",
+   "address": "Shopee <marketing@shopee.example>",
+   "subject": "Flash sale tonight",
+   "snippet": "Up to 50% off, only tonight."
+  },
+  {
+   "sender": "Dr. Pham Clinic",
+   "address": "Dr. Pham Clinic <reception@drpham.example>",
+   "subject": "Appointment reminder",
+   "snippet": "This is a reminder for your appointment on Monday at 09:30."
+  },
+  {
+   "sender": "GitHub",
+   "address": "GitHub <noreply@github.example>",
+   "subject": "[ultron] CI run failed",
+   "snippet": "The workflow run failed on branch main."
+  },
+  {
+   "sender": "Sarah Lee",
+   "address": "Sarah Lee <sarah@example.com>",
+   "subject": "Quick question about the invoice",
+   "snippet": "Could you confirm the invoice number? Accounting is asking."
+  },
+  {
+   "sender": "Grab",
+   "address": "Grab <no-reply@grab.example>",
+   "subject": "Your receipt",
+   "snippet": "Thanks for riding with Grab."
+  },
+  {
+   "sender": "Newsletter Tech Weekly",
+   "address": "Newsletter Tech Weekly <newsletter@techweekly.example>",
+   "subject": "This week in AI",
+   "snippet": "The top AI stories this week."
+  },
+  {
+   "sender": "HR Team",
+   "address": "HR Team <hr@company.example>",
+   "subject": "Updated leave policy",
+   "snippet": "Please read the updated leave policy before the end of the month."
+  },
+  {
+   "sender": "Apple",
+   "address": "Apple <noreply@apple.example>",
+   "subject": "Your Apple ID was used to sign in",
+   "snippet": "Your Apple ID was used to sign in on a new device."
+  },
+  {
+   "sender": "Bao Tran",
+   "address": "Bao Tran <bao.tran@example.com>",
+   "subject": "Photos from the trip",
+   "snippet": "Here are the photos from last weekend's trip."
+  }
+ ],
+ "weather": {
+  "city": "Hanoi",
+  "condition": "light rain",
+  "tmin": 18,
+  "tmax": 24,
+  "rain": 70,
+  "wind": 22
+ },
+ "news": [
+  {
+   "title": "Peace talks resume as ceasefire holds for third day",
+   "url": "https://news.example/1",
+   "source": "news.example",
+   "topic": "politics"
+  },
+  {
+   "title": "Election results: coalition government expected after recount",
+   "url": "https://news.example/2",
+   "source": "news.example",
+   "topic": "politics"
+  },
+  {
+   "title": "UN Security Council meets over border tensions",
+   "url": "https://news.example/3",
+   "source": "news.example",
+   "topic": "politics"
+  },
+  {
+   "title": "Summit ends with pledge on climate finance",
+   "url": "https://news.example/4",
+   "source": "news.example",
+   "topic": "politics"
+  },
+  {
+   "title": "Opposition leader detained ahead of vote, rights groups say",
+   "url": "https://news.example/5",
+   "source": "news.example",
+   "topic": "politics"
+  },
+  {
+   "title": "New sanctions announced on shipping firms",
+   "url": "https://news.example/6",
+   "source": "news.example",
+   "topic": "politics"
+  },
+  {
+   "title": "Gold hits record high as investors seek safe haven",
+   "url": "https://news.example/7",
+   "source": "news.example",
+   "topic": "economy"
+  },
+  {
+   "title": "Stocks slide after inflation data surprises markets",
+   "url": "https://news.example/8",
+   "source": "news.example",
+   "topic": "economy"
+  },
+  {
+   "title": "Bitcoin falls below key support level",
+   "url": "https://news.example/9",
+   "source": "news.example",
+   "topic": "economy"
+  },
+  {
+   "title": "Central bank holds rates, signals cuts next year",
+   "url": "https://news.example/10",
+   "source": "news.example",
+   "topic": "economy"
+  },
+  {
+   "title": "Oil prices rise on supply worries",
+   "url": "https://news.example/11",
+   "source": "news.example",
+   "topic": "economy"
+  },
+  {
+   "title": "VN-Index closes higher on banking stocks",
+   "url": "https://news.example/12",
+   "source": "news.example",
+   "topic": "economy"
+  }
+ ]
+}

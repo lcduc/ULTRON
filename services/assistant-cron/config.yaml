@@ -6,7 +6,7 @@ timezone: Asia/Ho_Chi_Minh
 
 # Local time (24 h, HH:MM) each briefing is sent. Set a time to "" to turn that briefing off.
 times:
-  morning: "07:00"
+  morning: "06:00"
   evening: "21:00"
 
 # Which parts go into each briefing. Morning covers today; evening covers tomorrow.
@@ -24,6 +24,10 @@ sections:
     weather: true
     news: false
 
+# How long after its time a briefing is still sent, e.g. after the PC was off. Default 4. A briefing
+# whose chat already exists is never sent again, so restarts inside this window are safe.
+late_grace_hours: 4
+
 # Days with no briefing, by English name, e.g. [Saturday, Sunday]. Empty = every day.
 quiet_days: []
 
@@ -38,12 +42,33 @@ channel: ntfy
 # Chat model that writes the text (a name served by the gateway).
 model: ultron
 
-news_count: 3
-# Search words for the headlines (SearXNG news category, last day).
-news_query: "world news headlines"
+# Two news searches (SearXNG news category, last day). Plain words: SearXNG engines ignore OR.
+# The model picks the headlines.
+news_queries:
+  politics: "war elections world politics"
+  economy: "gold price stock market bitcoin"
 mail_max_unread: 15
-mail_top: 5
 
-# The model is retried for this long (GPU busy, model loading) before a plain list is sent.
+# Limits for the push and the model's answer.
+limits:
+  greeting_chars: 140
+  tip_chars: 100
+  schedule_items: 6   # schedule items in the push, then "+N more"
+  mail_picks: 3
+  news_picks: 3
+  title_chars: 40
+  headline_chars: 60
+  chat_news: 6        # headlines in the saved chat
+
+# Who writes the greeting and the clothing tip. (The same butler voice as in Open WebUI chats.)
+persona: >-
+  You are Ultron, the user's personal AI assistant. You speak like a loyal, composed butler in the
+  manner of Alfred or JARVIS: polite, warm, a touch of dry wit. Address the user as 'sir'.
+
+# Each briefing is also saved as an Open WebUI chat titled "Briefing · ...". Such chats are deleted
+# after this many days. Other chats are never touched.
+chat_retention_days: 7
+
+# The model is retried for this long (GPU busy, model loading) before the fallbacks are used.
 model_wait_minutes: 30
 model_timeout_seconds: 180

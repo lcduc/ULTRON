@@ -1,0 +1,37 @@
+{
+ "mode": "evening",
+ "date": "2026-11-23",
+ "calendar": [
+  {
+   "title": "Flight check-in",
+   "all_day": false,
+   "start": "08:00",
+   "end": "08:15",
+   "location": ""
+  },
+  {
+   "title": "Lunch with Minh",
+   "all_day": false,
+   "start": "12:30",
+   "end": "13:30",
+   "location": "Quan An Ngon"
+  }
+ ],
+ "tasks": [
+  {
+   "title": "Renew visa form",
+   "due": "2026-11-23",
+   "overdue": false
+  }
+ ],
+ "mail": [],
+ "weather": {
+  "city": "Hanoi",
+  "condition": "partly cloudy",
+  "tmin": 20,
+  "tmax": 27,
+  "rain": 10,
+  "wind": 10
+ },
+ "news": []
+}

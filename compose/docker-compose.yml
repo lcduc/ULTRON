@@ -160,7 +160,8 @@ services:
       start_period: 20s
     logging: *default-logging
 
-  # Morning briefing (07:00) and evening preview (21:00), pushed to the phone through ntfy.
+  # Morning briefing (06:00) and evening preview (21:00), pushed to the phone through ntfy and saved
+  # as a chat in Open WebUI.
   # Settings: services/assistant-cron/config.yaml. Reads calendar, tasks and mail through the
   # shared code in mcp/google-calendar (mounted read-only).
   assistant-cron:
@@ -176,12 +177,16 @@ services:
       NTFY_TOPIC: ${NTFY_TOPIC}
       NTFY_TOKEN: ${NTFY_TOKEN}
       ULTRON_PUBLIC_URL: ${ULTRON_PUBLIC_URL:-}
+      # Saves each briefing as a chat (and deletes old ones) through the Open WebUI API.
+      ULTRON_API_KEY: ${ULTRON_API_KEY}
+      OPENWEBUI_URL: http://open-webui:8080
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
     volumes:
       - ../mcp/google-calendar:/mcp:ro
       - ../services/assistant-cron/config.yaml:/app/config.yaml:ro
+      - ../services/assistant-cron/fixtures:/app/fixtures:ro
     read_only: true
     mem_limit: 256m
     depends_on:

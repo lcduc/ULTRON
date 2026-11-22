@@ -18,7 +18,7 @@ Private, unfiltered local chat assistant. Design and reasoning are in [PLAN.md](
 | Agent sandbox (Open Terminal 0.17.8) | internal only | Shell and files for `ultron-agent`; sees only the workspace folder |
 | Voice (Kokoro-FastAPI 0.10.0, CPU) | internal only | The bot's spoken replies; Whisper speech-to-text runs inside Open WebUI |
 | Phone pushes (ntfy 2.37.2) | 127.0.0.1:2586; tailnet `https://<pc-name>.<tailnet>.ts.net:8443` | Needs the user/token; carries the briefings to the iPhone |
-| Briefing job (assistant-cron) | internal only | Sends the 07:00 morning briefing and 21:00 evening preview; settings in `services/assistant-cron/config.yaml` |
+| Briefing job (assistant-cron) | internal only | Sends the 06:00 morning briefing and 21:00 evening preview; settings in `services/assistant-cron/config.yaml` |
 
 All secrets are in `compose/.env` and `monitoring/secrets/` (git-ignored). This includes the Google Calendar refresh token, which the daily backup copies with the other secrets.
 
@@ -182,19 +182,37 @@ For llama.cpp, unpack a newer release over `bin\llama\` and re-check the flags i
 
 ## Morning briefing and phone pushes
 
-**What runs:** two containers in `compose\`. `ntfy` is the push server (user `ultron`, one private topic, everything else denied). `assistant-cron` is a small scheduler that sends a briefing at 07:00 (today) and an evening preview at 21:00 (tomorrow), Asia/Ho_Chi_Minh time. Each briefing gathers calendar, tasks, unread mail (last 24 h), Hanoi weather (Open-Meteo, sends only the coordinates) and 3 headlines (SearXNG). The `ultron` model writes a few short lines, and ntfy pushes them with the title "Ultron — morning" or "Ultron — evening". Tapping the notification opens the chat UI (`ULTRON_PUBLIC_URL`).
+**What runs:** two containers in `compose\`. `ntfy` is the push server (user `ultron`, one private topic, everything else denied). `assistant-cron` is a small scheduler that sends a briefing at 06:00 (today) and an evening preview at 21:00 (tomorrow), Asia/Ho_Chi_Minh time. Each briefing gathers calendar, tasks, unread mail (last 24 h), Hanoi weather (Open-Meteo, sends only the coordinates) and news (two SearXNG searches: politics, and economy). The `ultron` model is called once. It writes a greeting and a clothing tip and picks the important mails and headlines by ID; code writes every other line.
 
-- If a section fails (for example mail before the Google sign-in), the briefing still goes out with a line such as `Mail: not available (...)`.
-- If the model does not answer for 30 minutes (GPU busy, model loading), a plain list without the model's summary is sent.
+**The push** is plain text, at most 600 characters, with the same layout every day:
+
+```
+Good morning, sir. A rather full day, I'm afraid.
+TODAY: 09:30 Dentist · 14:00 Team sync · Pay electricity (overdue) · +2 more
+WEATHER: Hanoi light rain, 18-24 C, rain 70%, wind 22 km/h. Do take the raincoat, sir.
+MAIL: An Nguyen: contract draft (1 of 9 unread)
+NEWS: headline · headline · headline
+```
+
+- TODAY (morning) or TOMORROW (evening) is one list: overdue tasks, all-day events, timed events, then tasks due that day. It shows 6 items, then `+N more`. An empty day reads `TODAY: nothing scheduled, sir`.
+- MAIL and NEWS are morning only. UNAVAILABLE is the last line and names sections that failed, for example `UNAVAILABLE: News, Mail`.
+- If the text is too long, code drops NEWS first, then schedule items, then shortens MAIL. The greeting, schedule and weather always stay.
+- If the model does not answer for 30 minutes, or answers badly twice, code uses fixed fallbacks: "Good morning, sir.", a clothing tip from simple weather rules, the first 3 mails that do not look automatic, and the first headlines of each search.
+
+**The chat:** each briefing is also saved as an Open WebUI chat titled `Briefing · Mon 23 Nov · morning`, with the full schedule, weather, mail and 6 headlines with links. Tapping the push opens that chat, so you can reply to it. If the chat cannot be created, the push still goes out and opens a new Ultron chat. Briefing chats older than `chat_retention_days` (7) are deleted on each run. Chats with other titles are never touched. The container needs `ULTRON_API_KEY` (from `compose/.env`) and reaches Open WebUI at `http://open-webui:8080`.
+
+- If a section fails (for example mail before the Google sign-in), the briefing still goes out and the section is named on the UNAVAILABLE line.
 - If ntfy fails, or `channel: email`, the briefing is emailed to your own Gmail address.
 - Secrets (`NTFY_PASSWORD`, `NTFY_TOKEN`, `NTFY_TOPIC`) and the addresses (`ULTRON_PUBLIC_URL`, `NTFY_BASE_URL`) are in `compose/.env`; `scripts\gen-env.ps1` adds missing ones. `start-all.ps1` publishes ntfy with `tailscale serve --bg --https=8443 http://127.0.0.1:2586`; the chat UI stays on the root.
+- A briefing missed while the PC was off is still sent up to `late_grace_hours` (4 h) late. Before sending, the job checks whether that day's briefing chat already exists, so restarting the container never sends a briefing twice. Dry runs with `--chat` title their chat `… · test`, so they never block the real one.
 
-**Change times or sections:** edit `services/assistant-cron/config.yaml` (times, per-briefing sections on/off, `quiet_days`, city, `channel`, `model`), then run `docker compose up -d --force-recreate assistant-cron` in `compose\`. An empty time turns that briefing off.
+**Change times or sections:** edit `services/assistant-cron/config.yaml` (times, per-briefing sections on/off, `quiet_days`, city, `channel`, `model`, `limits`, `persona` for the greeting, `news_queries`, `chat_retention_days`), then run `docker compose up -d --force-recreate assistant-cron` in `compose\`. An empty time turns that briefing off.
 
 **Test:** in `compose\`:
 
-- `docker compose exec assistant-cron python briefing.py --run morning --dry-run` prints what it would send (it still calls the model; add `--no-model` to skip that).
-- `docker compose exec assistant-cron python briefing.py --run evening` sends one for real.
+- `docker compose exec assistant-cron python briefing.py --run morning --dry-run` prints what it would send, with real data (it still calls the model; add `--no-model` to use the fallbacks). Add `--chat` to also create the briefing chat, `--show-chat` to print its text and `--raw` to print the section data.
+- `docker compose exec assistant-cron python briefing.py --fixture fixtures/busy-day.json --dry-run` tests the layout with fake data and fetches nothing. Fixtures: `empty-day`, `busy-day`, `all-failed`, `long-vietnamese`, `evening`. A fixture run never sends and never creates a chat unless you add `--chat`.
+- `docker compose exec assistant-cron python briefing.py --run evening` sends one for real (push and chat).
 - `docker compose logs assistant-cron` shows one line per section and how it was sent.
 - Check delivery on the server: `curl -H "Authorization: Bearer <NTFY_TOKEN>" "https://<pc-name>.<tailnet>.ts.net:8443/<NTFY_TOPIC>/json?poll=1&since=10m"`.
 

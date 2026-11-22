@@ -1,0 +1,15 @@
+{
+ "mode": "morning",
+ "calendar": [],
+ "tasks": [],
+ "mail": [],
+ "weather": {
+  "city": "Hanoi",
+  "condition": "clear",
+  "tmin": 22,
+  "tmax": 31,
+  "rain": 5,
+  "wind": 8
+ },
+ "news": []
+}
