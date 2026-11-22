@@ -34,7 +34,7 @@ if (-not $brokerRunning) {
 
 # 2c. (Retired 2026-11-22) model-idle.ps1 swapped back to the chat model after agent
 # work. With one model for every chat name there is nothing to swap; the script is
-# kept in case two models come back (PLAN-ONE-MODEL.md).
+# kept in case two models come back.
 # $idleRunning = Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
 #     Where-Object { $_.CommandLine -match 'model-idle\.ps1' }
 # if (-not $idleRunning) {

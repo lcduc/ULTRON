@@ -1,8 +1,8 @@
 # Skill: Studio (animated story series pipeline)
 
 Use this skill for any work on the animated series: planning a season, writing an episode, making
-images, video, voices or music for it, or finishing and posting it. The full design is in
-`PLAN-STUDIO.md` in the Ultron repository; this file is the working summary.
+images, video, voices or music for it, or finishing and posting it. This file is the working
+summary of the studio design (the full plan is in the git history).
 
 ## How to use the stage skills
 

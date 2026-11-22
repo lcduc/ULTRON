@@ -1,8 +1,77 @@
-# Ultron — runbook
+# Ultron
 
-Private, unfiltered local chat assistant. Design and reasoning are in [PLAN.md](PLAN.md). The animated-series pipeline (not built yet) is planned in [PLAN-STUDIO.md](PLAN-STUDIO.md).
+A private AI butler that runs on your own PC. No cloud AI: the model, your chats and your voice stay at home. Only the Google tools you connect talk to Google.
 
-## What runs where
+[![Ultron demo video](docs/assets/ultron-demo.jpg)](docs/assets/ultron-demo.mp4)
+
+Click the picture to open the demo video. Project page: [docs/index.html](docs/index.html) (also published with GitHub Pages at https://lcduc.github.io/ULTRON/).
+
+## What it does
+
+- **Chat with one local model.** Qwen3.6-35B-A3B (MoE, 3B active) with vision and MTP speculative decoding, about 55 tok/s on an RTX 3060 12 GB. It is loaded at startup and never swapped. A thinking mode and an agent mode use the same loaded model.
+- **Butler persona.** Ultron answers as a polite butler in every chat.
+- **Voice calls.** Hands-free talk with spoken answers, about 4.5 s from the end of your sentence to the first spoken reply. Speech-to-text (Whisper) and text-to-speech (Kokoro) run on the CPU, so they take no VRAM.
+- **Google Calendar, Tasks and Gmail.** Read and add events, keep a to-do list, search and read mail, and draft replies. It cannot send or delete mail.
+- **Phone briefings.** A briefing at 06:00 (today) and 21:00 (tomorrow) arrives as a push on your phone. It is also saved as a chat, so you can reply to it.
+- **Memory.** It remembers lasting facts you tell it, and a small profile is always in its prompt.
+- **Web search.** Private search through SearXNG; no search account needed.
+- **Agent sandbox.** `ultron-agent` runs shell commands in a locked-down container that sees only one workspace folder. Skills tell it how to use apps such as ComfyUI, and a planner keeps long tasks on track.
+- **Monitoring.** Grafana (tokens, GPU, VRAM), Prometheus and Uptime Kuma, plus a daily backup.
+- **Private by design.** Every service listens on localhost. Your phone or laptop reaches the chat over Tailscale, never the open internet.
+
+## How it works
+
+```mermaid
+flowchart LR
+    Dev["Phone / browser"] -->|Tailscale HTTPS| OW["Open WebUI :3000"]
+    OW --> LL["LiteLLM gateway :4000"]
+    LL --> LS["llama-server :8080<br/>Qwen3.6-35B-A3B"]
+    OW --> Voice["Voice: Whisper + Kokoro (CPU)"]
+    OW --> MCP["calendar-mcp<br/>Calendar, Tasks, Gmail"]
+    OW --> Search["SearXNG"]
+    OW --> Box["Agent sandbox<br/>(workspace folder only)"]
+    Cron["assistant-cron<br/>06:00 / 21:00"] --> OW
+    Cron --> MCP
+    Cron --> Search
+    Cron -->|push| Ntfy["ntfy"]
+    Ntfy -->|Tailscale| Dev
+    Mon["Prometheus, Grafana, Uptime Kuma"] -.-> LL
+    Mon -.-> LS
+```
+
+| Component | Address (this PC only) | Role |
+|---|---|---|
+| Open WebUI 0.13.3 | `localhost:3000` | Chat UI; the only thing published to Tailscale |
+| llama.cpp (llama-server) | `127.0.0.1:8080` | Runs the model on the GPU, native on Windows |
+| LiteLLM 1.109.1 | `localhost:4000` | Gateway, keys, token logs |
+| calendar-mcp | internal | Calendar, Tasks and Gmail tools (MCP) |
+| assistant-cron | internal | Builds the briefings |
+| ntfy | `127.0.0.1:2586` | Phone pushes |
+| SearXNG | internal | Web search |
+| Kokoro | internal | Text-to-speech |
+| Open Terminal | internal | Agent sandbox |
+| Grafana / Prometheus / Uptime Kuma | `:3001` / `:9090` / `:3002` | Monitoring |
+
+## Hardware and requirements
+
+- Tested on: RTX 3060 12 GB, 32 GB RAM, Intel i5-14600KF, Windows 11.
+- The model uses about 11.1-11.3 GB of VRAM and about 14 GB of RAM. Free system RAM with the full stack is about 3.4-3.9 GB.
+- Software: Docker Desktop, Git, PowerShell, Python 3, Tailscale (for remote access), and a llama.cpp Windows CUDA 12 build unpacked in `bin\llama\`.
+- Disk: the active model files (`models/`, not in git) are about 23.6 GB (22.7 GB model with MTP, 0.9 GB vision projector), plus any old models you keep.
+- A Google account is optional; it is needed only for the calendar, tasks, mail and the briefing's schedule.
+
+## Quick start
+
+1. Clone the repo. Put the llama.cpp build in `bin\llama\` and the model files in `models\` (see Models below).
+2. Run `scripts\gen-env.ps1`. It creates `compose\.env` with random secrets and the Prometheus secrets. It never prints them.
+3. Run `scripts\start-all.ps1`. It starts Docker, the model server, the containers, the GPU broker and the Tailscale serve rules. A Windows task "Ultron Start" can run it at sign-in.
+4. Open http://localhost:3000, create the admin account, and set the options listed under "Open WebUI settings" below.
+5. Optional: connect Google (see Google Calendar), then the phone briefings (see Morning briefing).
+6. Remote access: see Remote access (Tailscale).
+
+# Reference
+
+### What runs where
 
 | Piece | Address (this PC only) | Notes |
 |---|---|---|
@@ -13,7 +82,6 @@ Private, unfiltered local chat assistant. Design and reasoning are in [PLAN.md](
 | Prometheus | http://localhost:9090 | |
 | Uptime Kuma | http://localhost:3002 | Create the admin and monitors on first visit |
 | GPU exporter | 127.0.0.1:9835 | Native |
-
 | Web search (SearXNG) | internal only | Used by the chat UI; no published port |
 | Agent sandbox (Open Terminal 0.17.8) | internal only | Shell and files for `ultron-agent`; sees only the workspace folder |
 | Voice (Kokoro-FastAPI 0.10.0, CPU) | internal only | The bot's spoken replies; Whisper speech-to-text runs inside Open WebUI |
@@ -22,7 +90,7 @@ Private, unfiltered local chat assistant. Design and reasoning are in [PLAN.md](
 
 All secrets are in `compose/.env` and `monitoring/secrets/` (git-ignored). This includes the Google Calendar refresh token, which the daily backup copies with the other secrets.
 
-## Models
+### Models
 
 The model server runs in router mode (`scripts/models.ini`) with one preset, `ultron`. It loads at startup and is never swapped. The three names below all point to the same loaded model, so switching names does not reload anything (since 2026-11-22).
 
@@ -34,18 +102,22 @@ The model server runs in router mode (`scripts/models.ini`) with one preset, `ul
 
 The model is `unsloth/Qwen3.6-35B-A3B-MTP-GGUF` (`models/Qwen3.6-35B-A3B-UD-Q4_K_M-MTP.gguf`, vision file `models/mmproj-Qwen3.6-35B-A3B-F16.gguf`). The preset uses `n-cpu-moe 28`, ubatch 1024 / batch 2048, MTP speculative decoding (`draft-mtp`, n-max 2) and the Qwen non-thinking samplers (temp 0.7, top-p 0.8, top-k 20, presence penalty 1.5). The per-name settings are in `compose/litellm-config.yaml`.
 
-The old Gemma 12B and Qwen Heretic models are kept as dormant presets (`old-gemma-12b`, `old-qwen-heretic`). They load only when requested by name, and their files stay in `models/`. Measured results and the stage logs: `PLAN-ONE-MODEL.md`, `logs/one-model-stage1.md`, `logs/one-model-stage2.md`.
+The old Gemma 12B and Qwen Heretic models are kept as dormant presets (`old-gemma-12b`, `old-qwen-heretic`). They load only when requested by name, and their files stay in `models/`. Stage logs: `logs/one-model-stage1.md`, `logs/one-model-stage2.md`.
+
+Measured on 2026-11-22: time to first token for a one-line chat 0.33 s cached, 1.38 s uncached; voice model-to-first-sentence median 0.76 s; a cold 3k-token prompt takes 6-8 s; the agent test T4 passed in 5 rounds (~15 s). Memory-mapped loading was tried and rejected (44 tok/s, less free RAM).
+
+Open items: free RAM with the full stack is slightly under the 4 GB target; the one-line chat prompt is 4,945 tokens with all tools (Qwen's tokenizer counts more than Gemma's); the briefing news section once returned "no results" (a search-side problem, not the model).
 
 Test scripts: `scripts/test-tools.ps1`, `scripts/test-modes.ps1`, `scripts/test-refusals.ps1`, `scripts/bench-agent-model.ps1`.
 
-## Agent sandbox
+### Agent sandbox
 
 - The sandbox container can read and write only its own home volume and the workspace folder set by `AGENT_WORKSPACE` in `compose/.env`.
 - It is on its own Docker network with Open WebUI only; it cannot reach the database, gateway or monitoring containers directly.
 - It can reach the internet, and any service this PC publishes on localhost (model server, gateway, chat UI, Grafana, Uptime Kuma, Prometheus, GPU exporter). All but Prometheus and the GPU exporter require a key or login. Keep nothing private in the workspace.
 - To connect it in Open WebUI: add an Open Terminal connection with URL `http://open-terminal:8000` and the `OPEN_TERMINAL_API_KEY` value from `compose/.env`, and enable it only for `ultron-agent` (web search stays on `ultron` and `ultron-think`).
 
-## Skills and the GPU broker
+### Skills and the GPU broker
 
 - `skills/<app>/` holds an instruction file (`SKILL.md`) and helper scripts for each app the agent may operate. The folder is mounted read-only in the sandbox at `/home/user/workspace/skills/`.
 - `skills/comfyui/comfy.py` runs ComfyUI workflow templates (`skills/comfyui/workflows/*.json`), saves results to the workspace `outputs/` folder, and validates parameters before queueing. It never installs anything into ComfyUI and never submits arbitrary graphs.
@@ -54,16 +126,16 @@ Test scripts: `scripts/test-tools.ps1`, `scripts/test-modes.ps1`, `scripts/test-
 - ComfyUI must be running on port 8188 (ComfyUI Desktop → instance → Manage → Startup Args: `--port 8188`). It only serves while the Desktop app has the instance launched.
 - To add a workflow: export it from ComfyUI with File → Export (API) and wrap it as described in `skills/comfyui/SKILL.md`.
 
-### Agent planning
+#### Agent planning
 
 `ultron-agent` has a short planning contract at the end of its system prompt (`scripts/agent-eval/contract.txt`, about 230 tokens, static between messages). Tasks of 1 or 2 steps are done directly, as before. Tasks of 3 or more steps start with a plan of at most 6 steps, each written as "do X || done when Y". The agent then runs one step at a time, checks the "done when" with a command, retries a failed step at most 2 times, replans at most 2 times per task, and ends with a report. It asks first before deleting files, starting a GPU job over 10 minutes, or installing anything outside the sandbox. A request that starts with "plan only" stops after the plan.
 
 - `skills/planner/plan.py` keeps the plan in `workspace/tasks/<slug>/plan.json` (source of truth) and renders `PLAN.md` from it; the agent never edits the Markdown. Commands: `new <slug> --goal "..." --step "do X || done when Y" ...`, `show`, `start <n>`, `done <n> --note "..."`, `fail <n> --error "..."`, `replan --reason "..." --step "..."`, `report`. The last plan created is the default, so the slug is only given once. The third failure of a step prints `LIMIT: replan or stop`; a third replan prints `LIMIT: stop and report`. Tests: `docker exec ultron-open-terminal-1 python3 /home/user/workspace/skills/planner/tests/test_plan.py`.
 - The tool-round cap is 40 for all models (Open WebUI 0.13.3 has no per-model cap).
 - `python scripts/agent-eval/apply_contract.py` writes the contract into the Open WebUI database (after a timestamped copy); `--remove` goes back to pure ReAct. It does not touch the profile block that `scripts/apply-profile.py` puts after the date line.
-- Rerun the comparison with `python scripts/agent-eval/run_eval.py` (needs ComfyUI running and about 3 hours; runs one job at a time and logs to `logs/agent-eval/<timestamp>.jsonl`). It drives `ultron-agent` through the gateway with the same terminal tools Open WebUI gives it (mode A without the contract, mode B with it) and checks the files each run leaves in the workspace. `--runs T1:A:1,T1:B:1` picks runs, `--summary` prints the table from all logs. Results are in `PLAN-ASSISTANT.md`.
+- Rerun the comparison with `python scripts/agent-eval/run_eval.py` (needs ComfyUI running and about 3 hours; runs one job at a time and logs to `logs/agent-eval/<timestamp>.jsonl`). It drives `ultron-agent` through the gateway with the same terminal tools Open WebUI gives it (mode A without the contract, mode B with it) and checks the files each run leaves in the workspace. `--runs T1:A:1,T1:B:1` picks runs, `--summary` prints the table from all logs.
 
-## Voice
+### Voice
 
 You can talk to the bot and hear its answers. Both run on the CPU, on this PC, so they never take VRAM from the chat model and nothing leaves the machine.
 
@@ -77,7 +149,7 @@ You can talk to the bot and hear its answers. Both run on the CPU, on this PC, s
 
 The audio settings live in Open WebUI's database and override the `AUDIO_*` values in `compose/docker-compose.yml`. They were written straight into the database on 2026-11-21, and the old database was saved inside the container as `webui.db.bak-before-voice`.
 
-## Google Calendar
+### Google Calendar
 
 `tools/google_calendar.py` is an Open WebUI tool. It lets the bot read your calendar and add, move or delete events with phone reminders ("I have a haircut at 1pm this Sunday, remind me"). The reminders are Google Calendar's own notifications, so they reach every phone signed in to the Google Calendar app.
 
@@ -97,7 +169,7 @@ The audio settings live in Open WebUI's database and override the `AUDIO_*` valu
 
 **How the bot handles incomplete requests:** the instructions in the tool's docstrings tell the model to ask when the day or time is missing or vague, never to ask for an end time but to estimate a typical length (haircut 45 min, dinner 90 min, and so on), and to use all-day events for birthdays or trips. The tool backs this up in code, because a small model does not always follow instructions. It refuses a date without a time unless `all_day` is set, adds nothing when the same event is already there, and stops on a clash with another timed event until the user agrees to the overlap.
 
-### Google Calendar, Tasks and Gmail over MCP (trial)
+#### Google Calendar, Tasks and Gmail over MCP (trial)
 
 `mcp/google-calendar/` is the same calendar tool rebuilt as an MCP server, to try MCP, and it now also covers Google Tasks and Gmail. It runs as the `calendar-mcp` container and reuses the Google credentials above. `google_auth.py` holds the shared sign-in, `calendar_api.py`, `tasks_api.py` and `gmail_api.py` hold the logic, and `server.py` publishes it as eleven MCP tools over Streamable HTTP at `http://calendar-mcp:8000/mcp`, behind a bearer key (`CALENDAR_MCP_API_KEY` in `compose/.env`). The container has no published port and is not on the agent network.
 
@@ -115,7 +187,7 @@ The audio settings live in Open WebUI's database and override the `AUDIO_*` valu
 2. Open WebUI → **Admin Settings → External Tools → +**: type *MCP (Streamable HTTP)*, URL `http://calendar-mcp:8000/mcp`, auth *Bearer* with the key.
 3. On each model, turn on the new MCP tool and turn off the old *Google Calendar* tool, so the model does not see the same tools twice.
 
-## Open WebUI settings made in the admin pages
+### Open WebUI settings made in the admin pages
 
 Settings saved in the admin UI live in Open WebUI's database and override `.env` values. Record changes here so a rebuild can repeat them.
 
@@ -135,7 +207,7 @@ Settings saved in the admin UI live in Open WebUI's database and override `.env`
 - System prompts (2026-11-21): `ultron` and `ultron-think` end with a memory instruction (save a memory when the user says "remember…" or states a lasting fact, delete when asked to forget, search memory before saying "I don't know" about the user, never store passwords, card or ID numbers). All three prompts get the profile block from `scripts/apply-profile.py` after the date line.
 - Agent planning (2026-11-21): the `ultron-agent` system prompt ends with a planning contract between `<!-- planning:start -->` and `<!-- planning:end -->`, written by `scripts/agent-eval/apply_contract.py` after a database copy (`webui.db.bak-<time>-planning`). It sits after the profile block. `CHAT_RESPONSE_MAX_TOOL_CALL_ITERATIONS` raised from 8 to 40 in `compose/docker-compose.yml` (Open WebUI 0.13.3 has no per-model setting; only its sub-agents set a cap per request), so it applies to all models.
 
-### Memory and profile
+#### Memory and profile
 
 Two things give the bot what it knows about you. Both are plain text, and neither changes between messages, so the model server keeps reusing its cached prompt.
 
@@ -144,11 +216,11 @@ Two things give the bot what it knows about you. Both are plain text, and neithe
 - **How they reach the model:** with the Memory switch on, each new message gets a hidden recall result placed after your message (not in the system prompt): all your "user" memories (up to 2000 characters) plus the 8 closest other memories to your last messages (up to 2000 characters). It is saved with the reply, so earlier turns are replayed unchanged. The memory tool's eight functions add about 1k tokens to every prompt (a one-line request was 2.9k tokens before, 4.0k after).
 - `scripts/test-memory.ps1` checks recall (5 facts, a correction, a "forget"). It needs `ULTRON_API_KEY` and removes the memories it created. Known limitation (2026-11-22): it cannot pass as written. A bare `/api/chat/completions` call without a `chat_id` returns raw `tool_calls` and Open WebUI does not execute them. The script needs to create a chat first and pass `chat_id` and the assistant message id; `logs/one-model-tests/chatflow.py` shows the working flow. This is a test script issue, not a model issue: memory tools ran correctly in a real Open WebUI chat.
 
-### Measuring the assistant
+#### Measuring the assistant
 
 `scripts\bench-assistant.ps1 -Label <name>` takes about 5 minutes and appends one JSON line to `logs\bench-assistant.jsonl`. It reads the real system prompts and tool schemas from Open WebUI and measures: prompt tokens and time to first token of a one-line request, what the background tasks cost in GPU seconds, voice speech-to-text and text-to-speech time, `test-tools.ps1`, and free RAM and VRAM. The chat-level tests (time to first token through Open WebUI, model-server requests per reply) need an API key from Settings → Account → API Keys, saved as `ULTRON_API_KEY=` in `compose/.env` or set as an environment variable; without it they print "ULTRON_API_KEY missing" and are skipped. `scripts\warm-voice.ps1` waits for Open WebUI and loads the Whisper model so the first voice message is fast (also needs the key; without it only the disk cache is warmed).
 
-## Daily operation
+### Daily operation
 
 - **Start everything:** `scripts\start-all.ps1` (also runs automatically at Windows sign-in, task "Ultron Start").
 - **Stop containers:** `docker compose --profile gateway --profile monitoring --profile agent stop` in `compose\`.
@@ -156,7 +228,7 @@ Two things give the bot what it knows about you. Both are plain text, and neithe
 - **Docker fails with "file cannot be accessed by the system":** run `scripts\start-docker.ps1`; it moves the stale socket folders aside. Never use "Reset to factory defaults".
 - **Model settings** (context size, model file): edit `scripts\start-llama.ps1`, then restart the model.
 
-## Backups
+### Backups
 
 - Task "Ultron Backup" runs `scripts\backup.ps1` daily at 03:00 and keeps 14 copies in `backups\`.
 - Each backup holds the chat data, Grafana and Uptime Kuma data, the LiteLLM database dump, and the secrets.
@@ -164,7 +236,7 @@ Two things give the bot what it knows about you. Both are plain text, and neithe
 - **Restore chat data:** stop the stack, then
   `docker run --rm -v ultron_open-webui-data:/data -v <backup folder>:/backup alpine:3.22 sh -c "rm -rf /data/* && tar xzf /backup/ultron_open-webui-data.tar.gz -C /data"`, then start again.
 
-## Updating (monthly)
+### Updating (monthly)
 
 1. Read the release notes (Open WebUI has had serious security fixes this year).
 2. Run a backup.
@@ -173,24 +245,24 @@ Two things give the bot what it knows about you. Both are plain text, and neithe
 
 For llama.cpp, unpack a newer release over `bin\llama\` and re-check the flags in `start-llama.ps1` (flag names change between builds).
 
-## Remote access (Tailscale)
+### Remote access (Tailscale)
 
 1. Install Tailscale on this PC and sign in; install it on the phone/laptop with the same account.
 2. In the Tailscale admin console, enable MagicDNS and HTTPS certificates.
 3. Run `tailscale serve --bg 3000` once (also re-applied by `start-all.ps1`).
 4. Open `https://<pc-name>.<tailnet>.ts.net` from any of your devices.
 
-## Morning briefing and phone pushes
+### Morning briefing and phone pushes
 
-**What runs:** two containers in `compose\`. `ntfy` is the push server (user `ultron`, one private topic, everything else denied). `assistant-cron` is a small scheduler that sends a briefing at 06:00 (today) and an evening preview at 21:00 (tomorrow), Asia/Ho_Chi_Minh time. Each briefing gathers calendar, tasks, unread mail (last 24 h), Hanoi weather (Open-Meteo, sends only the coordinates) and news (two SearXNG searches: politics, and economy). The `ultron` model is called once. It writes a greeting and a clothing tip and picks the important mails and headlines by ID; code writes every other line.
+**What runs:** two containers in `compose\`. `ntfy` is the push server (user `ultron`, one private topic, everything else denied). `assistant-cron` is a small scheduler that sends a briefing at 06:00 (today) and an evening preview at 21:00 (tomorrow), in the time zone set in `config.yaml`. Each briefing gathers calendar, tasks, unread mail (last 24 h), weather for your city (Open-Meteo, sends only the coordinates) and news (two SearXNG searches: politics, and economy). The `ultron` model is called once. It writes a greeting and a clothing tip and picks the important mails and headlines by ID; code writes every other line.
 
 **The push** is plain text, at most 600 characters, with the same layout every day:
 
 ```
 Good morning, sir. A rather full day, I'm afraid.
 TODAY: 09:30 Dentist · 14:00 Team sync · Pay electricity (overdue) · +2 more
-WEATHER: Hanoi light rain, 18-24 C, rain 70%, wind 22 km/h. Do take the raincoat, sir.
-MAIL: An Nguyen: contract draft (1 of 9 unread)
+WEATHER: Your City light rain, 18-24 C, rain 70%, wind 22 km/h. Do take the raincoat, sir.
+MAIL: A. Sender: contract draft (1 of 9 unread)
 NEWS: headline · headline · headline
 ```
 

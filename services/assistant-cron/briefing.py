@@ -326,7 +326,7 @@ def is_automatic(mail) -> bool:
 
 
 def fallback_picks(data, mode, cfg):
-    """What code chooses when the model is gone or answers badly (PLAN-BRIEFING.md §3)."""
+    """What code chooses when the model is gone or answers badly."""
     mails = [m["id"] for m in data.get("mail", []) if not is_automatic(m)][: limit(cfg, "mail_picks")]
     news = [n["id"] for n in data.get("news", [])][: limit(cfg, "news_picks")]
     return {
