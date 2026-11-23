@@ -76,6 +76,7 @@ ITEMS = {
     "gold": ("Gold", "${:,.0f}/oz", [yahoo("GC=F"), coingecko("pax-gold")]),
     "bitcoin": ("Bitcoin", "${:,.0f}", [coingecko("bitcoin"), binance_btc]),
     "sp500": ("S&P 500", "{:,.0f}", [yahoo("^GSPC")]),
+    "nasdaq100": ("Nasdaq 100", "{:,.0f}", [yahoo("^NDX")]),
     "vnindex": ("VN-Index", "{:,.0f}", [yahoo("^VNINDEX.VN")]),
     "usd": ("USD", "{:,.0f} ₫", [vietcombank("USD"), yahoo("VND=X"), er_api("USD")]),
     "eur": ("EUR", "{:,.0f} ₫", [vietcombank("EUR"), yahoo("EURVND=X"), er_api("EUR")]),
