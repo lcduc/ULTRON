@@ -28,6 +28,14 @@ sections:
     tasks: true
     weather: true
 
+# The evening push also carries a short MP3 read in Ultron's voice (Kokoro text-to-speech): tomorrow's
+# schedule and weather, written by code. If the audio fails, the normal text push goes out alone.
+# enabled: false = text only, exactly as before.
+spoken:
+  enabled: true
+  voice: am_michael
+  max_items: 6      # schedule items read out, then "and N more"
+
 # The office briefing is skipped on days not listed here, on Vietnamese public holidays, and on days
 # with an all-day event whose title contains one of these words (any case, whole words).
 working_days: [Monday, Tuesday, Wednesday, Thursday, Friday]

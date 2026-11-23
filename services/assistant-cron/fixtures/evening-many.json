@@ -1,0 +1,78 @@
+{
+ "mode": "evening",
+ "date": "2026-11-24",
+ "calendar": [
+  {
+   "title": "Gym",
+   "all_day": false,
+   "start": "07:30",
+   "end": "07:30",
+   "location": ""
+  },
+  {
+   "title": "Team sync",
+   "all_day": false,
+   "start": "09:00",
+   "end": "09:00",
+   "location": ""
+  },
+  {
+   "title": "Design review",
+   "all_day": false,
+   "start": "10:15",
+   "end": "10:15",
+   "location": ""
+  },
+  {
+   "title": "Call with the bank",
+   "all_day": false,
+   "start": "11:45",
+   "end": "11:45",
+   "location": ""
+  },
+  {
+   "title": "Lunch",
+   "all_day": false,
+   "start": "13:00",
+   "end": "13:00",
+   "location": ""
+  },
+  {
+   "title": "Dentist",
+   "all_day": false,
+   "start": "14:00",
+   "end": "14:00",
+   "location": ""
+  },
+  {
+   "title": "1:1 with Lan",
+   "all_day": false,
+   "start": "16:30",
+   "end": "16:30",
+   "location": ""
+  },
+  {
+   "title": "Dinner at Phở 10",
+   "all_day": false,
+   "start": "18:05",
+   "end": "18:05",
+   "location": ""
+  }
+ ],
+ "tasks": [
+  {
+   "title": "Send invoice",
+   "due": "2026-11-24",
+   "overdue": false
+  }
+ ],
+ "weather": {
+  "city": "Hanoi",
+  "condition": "light rain",
+  "tmin": 19,
+  "tmax": 24,
+  "rain": 70,
+  "wind": 14,
+  "rain_window": null
+ }
+}

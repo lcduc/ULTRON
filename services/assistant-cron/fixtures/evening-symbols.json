@@ -1,0 +1,43 @@
+{
+ "mode": "evening",
+ "date": "2026-11-24",
+ "calendar": [
+  {
+   "title": "🚀 Launch!! *Project X* [v2] https://example.com/launch",
+   "all_day": false,
+   "start": "09:30",
+   "end": "10:00",
+   "location": ""
+  },
+  {
+   "title": "Q&A w/ R&D — budget ~ 50% #urgent <review>",
+   "all_day": false,
+   "start": "14:00",
+   "end": "15:00",
+   "location": ""
+  },
+  {
+   "title": "Nghỉ trưa 😴 và đọc sách về một chủ đề rất dài dòng cần được cắt ngắn",
+   "all_day": false,
+   "start": "17:05",
+   "end": "18:00",
+   "location": ""
+  }
+ ],
+ "tasks": [
+  {
+   "title": "Pay rent 💸 (due @ bank)",
+   "due": "2026-11-24",
+   "overdue": true
+  }
+ ],
+ "weather": {
+  "city": "Hanoi",
+  "condition": "light rain",
+  "tmin": 19,
+  "tmax": 24,
+  "rain": 70,
+  "wind": 14,
+  "rain_window": null
+ }
+}

@@ -14,6 +14,7 @@ reached for model_wait_minutes, or answers badly twice, code-made fallbacks are 
 """
 
 import argparse
+import base64
 import importlib
 import inspect
 import json
@@ -36,6 +37,7 @@ import markets
 import news
 import rain
 import reminders
+import spoken
 
 CONFIG_PATH = Path(os.environ.get("BRIEFING_CONFIG", "/app/config.yaml"))
 STATE_PATH = Path(os.environ.get("BRIEFING_STATE", "/app/state/briefing.json"))
@@ -832,12 +834,41 @@ def push_ntfy(title, body, click):
     r.raise_for_status()
 
 
+def _hdr(text) -> str:
+    """HTTP header value; non-ASCII text as RFC 2047 (ntfy decodes it). Newlines become a literal backslash-n."""
+    text = text.replace(chr(10), chr(92) + "n")
+    try:
+        text.encode("ascii")
+        return text
+    except UnicodeEncodeError:
+        return "=?UTF-8?B?" + base64.b64encode(text.encode("utf-8")).decode() + "?="
+
+
+def push_ntfy_audio(title, body, click, mp3, filename):
+    """Publishes the push with the MP3 as an attachment: file as the request body, text in headers."""
+    url = os.environ.get("NTFY_URL", "http://ntfy:80").rstrip("/") + "/" + os.environ["NTFY_TOPIC"]
+    headers = {"Authorization": f"Bearer {os.environ['NTFY_TOKEN']}", "Title": _hdr(title),
+               "Message": _hdr(body), "Filename": filename, "Content-Type": "audio/mpeg"}
+    if click:
+        headers["Click"] = click
+    r = requests.put(url, data=mp3, headers=headers, timeout=60)
+    r.raise_for_status()
+    return r.json()
+
+
 def push_email(title, body):
     make("gmail_api", "send_to_self").send_to_self(title, body)
 
 
-def send(cfg, title, body, click):
+def send(cfg, title, body, click, audio=None, filename="briefing.mp3"):
     if cfg.get("channel", "ntfy") != "email":
+        if audio:
+            try:
+                push_ntfy_audio(title, body, click, audio, filename)
+                log.info("sent via ntfy with audio (%d KB)", len(audio) // 1024)
+                return
+            except Exception as e:
+                log.warning("audio push failed (%s); sending the text push", cut(e, 120))
         try:
             push_ntfy(title, body, click)
             log.info("sent via ntfy")
@@ -850,8 +881,26 @@ def send(cfg, title, body, click):
 
 # ---------------------------------------------------------------------------- run
 
+def make_audio(cfg, mode, data, day, picks, no_audio=False):
+    """(script, mp3 bytes or None) for the evening briefing, or ("", None) when it is off. Never raises."""
+    if mode != "evening" or not spoken.settings(cfg)["enabled"]:
+        return "", None
+    try:
+        text = spoken.script(cfg, data, day, picks.get("clothing_tip", ""), build_schedule)
+    except Exception as e:
+        log.warning("spoken script failed (%s)", cut(e, 120))
+        return "", None
+    if no_audio:
+        return text, None
+    try:
+        return text, spoken.synth(cfg, text)
+    except Exception as e:
+        log.warning("no audio (%s); text push only", cut(e, 120))
+        return text, None
+
+
 def run(mode=None, dry_run=False, no_model=False, fixture=None, chat=False, show_chat=False, raw=False,
-        now=None, state_path=None):
+        now=None, state_path=None, no_audio=False):
     cfg = load_config()
     tz = ZoneInfo(cfg["timezone"])
     now = now or datetime.now(tz)
@@ -899,14 +948,22 @@ def run(mode=None, dry_run=False, no_model=False, fixture=None, chat=False, show
     if (chat or (not dry_run and not fixture)) and os.environ.get("ULTRON_API_KEY"):
         cid = make_chat(cfg, mode, today, render_chat(mode, day, data, failed, picks, cfg), test=dry_run or bool(fixture))
     click = chat_url(cid, cfg.get("model", "ultron"))
+    script_text, mp3 = make_audio(cfg, mode, data, day, picks, no_audio)
     if dry_run:
+        if script_text:
+            path = ""
+            if mp3:
+                path = os.path.join(tempfile.gettempdir(), f"evening-{day.isoformat()}.mp3")
+                Path(path).write_bytes(mp3)
+            print(f"SPOKEN: {script_text}\n({len(script_text.split())} words; "
+                  + (f"audio {len(mp3)} bytes at {path})" if mp3 else "no audio)"))
         print(f"TITLE: {title}\nCLICK: {click}\nCHAT_ID: {cid}\nPICKS: {source}\n---\n{body}\n---\n({len(body)} chars)")
         if show_chat:
             print("\n=== CHAT ===\n" + render_chat(mode, day, data, failed, picks, cfg))
         if raw:
             print("\n=== RAW ===\n" + json.dumps({"failed": failed, **data}, ensure_ascii=False, indent=1))
         return
-    send(cfg, title, body, click)
+    send(cfg, title, body, click, mp3, f"evening-{day.isoformat()}.mp3")
 
 
 def due(cfg, mode, now, done):
@@ -969,6 +1026,7 @@ def main():
     ap.add_argument("--chat", action="store_true", help="create the briefing chat even in a dry run or with --fixture")
     ap.add_argument("--show-chat", action="store_true", help="dry run: also print the chat text")
     ap.add_argument("--raw", action="store_true", help="dry run: also print the section data")
+    ap.add_argument("--no-audio", action="store_true", help="evening: print the spoken script but do not synthesize it")
     ap.add_argument("--reminders", action="store_true", help="check time-to-leave reminders once")
     ap.add_argument("--rain", action="store_true", help="check for a rain alert once")
     ap.add_argument("--now", help="fake clock, local time like 2026-11-24T13:20 (briefings, --reminders and --rain)")
@@ -999,7 +1057,7 @@ def main():
         ap.error("--fixture only works with --dry-run (it never sends)")
     if args.run or args.fixture:
         run(args.run, args.dry_run, args.no_model, args.fixture, args.chat, args.show_chat, args.raw,
-            now=now, state_path=Path(args.state) if args.state else None)
+            now=now, state_path=Path(args.state) if args.state else None, no_audio=args.no_audio)
     else:
         scheduler()
 

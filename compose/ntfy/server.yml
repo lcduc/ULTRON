@@ -12,6 +12,10 @@ auth-default-access: "deny-all"
 auth-file: "/var/lib/ntfy/user.db"
 cache-file: "/var/lib/ntfy/cache.db"
 cache-duration: "24h"
-attachment-cache-dir: ""
+# Attachments: the evening push carries a short spoken MP3. Files are kept 24 h, then deleted.
+attachment-cache-dir: "/var/lib/ntfy/attachments"
+attachment-total-size-limit: "100M"
+attachment-file-size-limit: "5M"
+attachment-expiry-duration: "24h"
 enable-signup: false
 enable-login: false
