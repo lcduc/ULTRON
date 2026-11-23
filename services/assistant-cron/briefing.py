@@ -554,6 +554,32 @@ def webui_api(method, path, body=None):
     return r.json() if r.content else None
 
 
+_folder = {"name": None, "id": None}  # in-memory cache of the chat folder's id
+
+
+def folder_id(cfg):
+    """Id of the Open WebUI folder named by chat_folder (created if missing), or None for no folder.
+    Never raises: a failure is logged and the chat is simply made without a folder."""
+    name = str(cfg.get("chat_folder") or "").strip()
+    if not name:
+        return None
+    if _folder["name"] == name and _folder["id"]:
+        return _folder["id"]
+    try:
+        found = next((f for f in webui_api("GET", "/api/v1/folders/") or [] if f.get("name") == name), None)
+        if not found:
+            found = webui_api("POST", "/api/v1/folders/", {"name": name})
+        _folder.update(name=name, id=found["id"])
+        return found["id"]
+    except Exception as e:
+        log.warning("chat folder %r unavailable (%s); no folder used", name, cut(e, 120))
+        return None
+
+
+def is_404(e) -> bool:
+    return getattr(getattr(e, "response", None), "status_code", None) == 404
+
+
 def chat_title(mode, today, test=False) -> str:
     return f"{CHAT_PREFIX} {today:%a %d %b} · {mode}" + (" · test" if test else "")
 
@@ -565,15 +591,38 @@ def already_sent(mode, today) -> bool:
         return False
     title = chat_title(mode, today)
     try:
-        for page in (1, 2, 3):
-            chats = webui_api("GET", f"/api/v1/chats/?page={page}") or []
-            if any(c.get("title") == title for c in chats):
-                return True
-            if not chats:
-                break
+        # The folder holds only assistant chats, so it is searched in full; then the most
+        # recent chats anywhere, in case this one was saved without the folder.
+        fid = folder_id(load_config())
+        lists = [(f"/api/v1/chats/folder/{fid}/list?page=", 10)] if fid else []
+        lists.append(("/api/v1/chats/?include_folders=true&page=", 3))
+        for base, max_pages in lists:
+            for page in range(1, max_pages + 1):
+                chats = webui_api("GET", f"{base}{page}") or []
+                if any(c.get("title") == title for c in chats):
+                    return True
+                if len(chats) < 10:
+                    break
     except Exception as e:
         log.warning("could not check for an earlier briefing (%s)", cut(e, 120))
     return False
+
+
+def post_chat(form, cfg):
+    """POSTs the chat into the folder. A deleted folder (404) is looked up again once; any other
+    folder trouble falls back to a chat without a folder."""
+    for _ in range(2):
+        fid = folder_id(cfg)
+        if not fid:
+            break
+        try:
+            return webui_api("POST", "/api/v1/chats/new", {**form, "folder_id": fid})["id"]
+        except Exception as e:
+            _folder["id"] = None
+            if not is_404(e):
+                log.warning("chat not saved in the folder (%s); saving without", cut(e, 120))
+                break
+    return webui_api("POST", "/api/v1/chats/new", form)["id"]
 
 
 def create_chat(cfg, mode, today, text, test=False):
@@ -587,7 +636,7 @@ def create_chat(cfg, mode, today, text, test=False):
            "model": model, "modelName": model, "modelIdx": 0, "timestamp": now, "done": True}
     chat = {"title": title, "models": [model], "messages": [user, bot],
             "history": {"messages": {uid: user, aid: bot}, "currentId": aid}, "timestamp": now * 1000}
-    return webui_api("POST", "/api/v1/chats/new", {"chat": chat})["id"]
+    return post_chat({"chat": chat}, cfg)
 
 
 def delete_old_chats(cfg):
@@ -596,7 +645,7 @@ def delete_old_chats(cfg):
     cutoff = time.time() - days * 86400
     removed, page = 0, 1
     while True:
-        chats = webui_api("GET", f"/api/v1/chats/?page={page}") or []
+        chats = webui_api("GET", f"/api/v1/chats/?page={page}&include_folders=true") or []
         for c in chats:
             if c.get("title", "").startswith(CHAT_PREFIX) and c.get("updated_at", time.time()) < cutoff:
                 webui_api("DELETE", f"/api/v1/chats/{c['id']}")
@@ -606,6 +655,40 @@ def delete_old_chats(cfg):
         page += 1
     if removed:
         log.info("deleted %d old briefing chat(s)", removed)
+
+
+# Title prefixes of chats the assistant creates; all of them are kept in the chat_folder.
+CHAT_PREFIXES = [CHAT_PREFIX]
+
+
+def tidy_chats(cfg):
+    """Moves existing assistant chats (title starts with a CHAT_PREFIXES entry) into the folder.
+    Safe to repeat. Never raises."""
+    try:
+        fid = folder_id(cfg)
+        if not fid:
+            return
+        inside, page = set(), 1
+        while True:
+            rows = webui_api("GET", f"/api/v1/chats/folder/{fid}/list?page={page}") or []
+            inside |= {c["id"] for c in rows}
+            if len(rows) < 10:
+                break
+            page += 1
+        moved, page = 0, 1
+        while True:
+            chats = webui_api("GET", f"/api/v1/chats/?page={page}&include_folders=true") or []
+            for c in chats:
+                if c["id"] not in inside and c.get("title", "").startswith(tuple(CHAT_PREFIXES)):
+                    webui_api("POST", f"/api/v1/chats/{c['id']}/folder", {"folder_id": fid})
+                    moved += 1
+            if not chats:
+                break
+            page += 1
+        if moved:
+            log.info("moved %d assistant chat(s) into the %r folder", moved, cfg.get("chat_folder"))
+    except Exception as e:
+        log.warning("chats not tidied into the folder (%s)", cut(e, 120))
 
 
 def make_chat(cfg, mode, today, text, test=False):
@@ -707,6 +790,8 @@ def due(cfg, mode, now, done):
 def scheduler():
     done = {}
     log.info("scheduler started")
+    if os.environ.get("ULTRON_API_KEY"):
+        tidy_chats(load_config())
     while True:
         try:
             HEARTBEAT.write_text(str(time.time()))

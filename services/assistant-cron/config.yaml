@@ -69,6 +69,9 @@ persona: >-
 # after this many days. Other chats are never touched.
 chat_retention_days: 7
 
+# Open WebUI folder that holds every chat the assistant creates (made if missing). "" = no folder.
+chat_folder: "Notifications"
+
 # The model is retried for this long (GPU busy, model loading) before the fallbacks are used.
 model_wait_minutes: 30
 model_timeout_seconds: 180
