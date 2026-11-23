@@ -106,3 +106,16 @@ reminders:
   notice_minutes: 15
   quiet_start: "22:00"
   quiet_end: "06:00"
+
+# One push when rain is about to start ("Rain expected in about 30 minutes, sir."). Needs it to be dry
+# now and rain likely (reminders.rain_threshold) within lookahead_minutes. At most one per
+# cooldown_hours (a time-to-leave reminder that warned about rain counts). Skipped when the rain is
+# already in the morning briefing's rain window, and between quiet_start and quiet_end.
+# Keep enabled: false until you want them.
+rain_alerts:
+  enabled: false
+  check_minutes: 15
+  lookahead_minutes: 60
+  cooldown_hours: 3
+  quiet_start: "22:00"
+  quiet_end: "06:00"

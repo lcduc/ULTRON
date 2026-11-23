@@ -34,6 +34,7 @@ import yaml
 
 import markets
 import news
+import rain
 import reminders
 
 CONFIG_PATH = Path(os.environ.get("BRIEFING_CONFIG", "/app/config.yaml"))
@@ -923,6 +924,7 @@ def due(cfg, mode, now, done):
 def scheduler():
     done = {}
     last_reminders = 0.0
+    last_rain = 0.0
     log.info("scheduler started")
     if os.environ.get("ULTRON_API_KEY"):
         tidy_chats(load_config())
@@ -946,6 +948,10 @@ def scheduler():
             if rs["enabled"] and time.monotonic() - last_reminders >= float(rs["check_minutes"]) * 60:
                 last_reminders = time.monotonic()
                 reminders.check(sys.modules[__name__], cfg, now)
+            ra = rain.settings(cfg)
+            if ra["enabled"] and time.monotonic() - last_rain >= float(ra["check_minutes"]) * 60:
+                last_rain = time.monotonic()
+                rain.check(sys.modules[__name__], cfg, now)
         except Exception:
             log.exception("scheduler loop error")
         time.sleep(20)
@@ -964,7 +970,8 @@ def main():
     ap.add_argument("--show-chat", action="store_true", help="dry run: also print the chat text")
     ap.add_argument("--raw", action="store_true", help="dry run: also print the section data")
     ap.add_argument("--reminders", action="store_true", help="check time-to-leave reminders once")
-    ap.add_argument("--now", help="fake clock, local time like 2026-11-24T13:20 (briefings and --reminders)")
+    ap.add_argument("--rain", action="store_true", help="check for a rain alert once")
+    ap.add_argument("--now", help="fake clock, local time like 2026-11-24T13:20 (briefings, --reminders and --rain)")
     ap.add_argument("--state", help="state file (dry runs default to a temp test file)")
     args = ap.parse_args()
     cfg = load_config()
@@ -978,6 +985,15 @@ def main():
         reminders.check(sys.modules[__name__], cfg, now,
                         state_path=Path(args.state) if args.state else reminders.STATE_PATH,
                         dry_run=args.dry_run, no_model=args.no_model, fixture=args.fixture, chat=args.chat)
+        return
+    if args.rain:
+        if not args.dry_run and not rain.settings(cfg)["enabled"]:
+            ap.error("rain alerts are disabled in config.yaml; use --dry-run")
+        if args.dry_run and not args.state:
+            args.state = os.path.join(tempfile.gettempdir(), "rain-dryrun-state.json")
+        rain.check(sys.modules[__name__], cfg, now,
+                   state_path=Path(args.state) if args.state else rain.STATE_PATH,
+                   dry_run=args.dry_run, fixture=args.fixture)
         return
     if args.fixture and not args.dry_run:
         ap.error("--fixture only works with --dry-run (it never sends)")

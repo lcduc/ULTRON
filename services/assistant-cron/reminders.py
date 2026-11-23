@@ -271,5 +271,11 @@ def check(B, cfg, now, *, state_path=STATE_PATH, dry_run=False, no_model=False, 
                 B.send(cfg, "Ultron — leave soon", text, B.chat_url(cid, cfg.get("model", "ultron")))
             except Exception:
                 log.exception("reminder push failed (not retried)")
+            if rain:  # a rain warning counts for the rain-alert cooldown; must never break reminders
+                try:
+                    import rain as rain_alerts
+                    rain_alerts.note_warning(now)
+                except Exception as e:
+                    log.warning("reminders: could not note the rain warning (%s)", B.cut(e, 100))
         log.info("reminder %s: %s", "previewed" if dry_run else "sent", B.cut(title, 60))
     return sent

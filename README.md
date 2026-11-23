@@ -291,6 +291,16 @@ The `ultron` model is called once per briefing: a greeting and clothing tip for 
 - `docker compose logs assistant-cron` shows one line per section and how it was sent.
 - Check delivery on the server: `curl -H "Authorization: Bearer <NTFY_TOKEN>" "https://<pc-name>.<tailnet>.ts.net:8443/<NTFY_TOPIC>/json?poll=1&since=10m"`.
 
+**Rain alerts:** one push, no chat, when rain is about to start: "Rain expected in about 30 minutes, sir. Take the umbrella if you're heading out." (within 10 minutes it says "within minutes"). Off by default.
+
+- Every `check_minutes` (15) the job reads Open-Meteo for the city: the current reading, the 15-minute forecast and the hourly rain chance. (Outside Europe and North America the 15-minute values are interpolated from hourly data.) Code decides, no model.
+- It alerts only if it is dry now (under 0.1 mm and no rain weather code) and the first 15-minute slot within `lookahead_minutes` (60) has rain (0.1 mm or more, or a rain weather code) with an hourly rain chance of at least `reminders.rain_threshold` (40 %). Missing chance data counts as enough.
+- At most one alert per `cooldown_hours` (3). A time-to-leave reminder that warned about rain counts as an alert. Nothing between `quiet_start` and `quiet_end` (22:00-06:00).
+- If the rain starts inside the rain window already named in today's morning briefing, it stays quiet. Rain before or after that window still alerts.
+- The last alert time is in `/app/state/rain.json` (`RAIN_STATE`) and is saved before sending. If that file cannot be read or written, nothing is sent.
+- Switch on: set `rain_alerts: enabled: true` in `config.yaml`, then `docker compose up -d --force-recreate assistant-cron` in `compose\`.
+- Test: `docker compose exec assistant-cron python briefing.py --rain --dry-run` (real forecast) or `--rain --dry-run --fixture fixtures/rain-soon.json --now 2026-11-24T14:20`. It prints PUSH, ONSET and REASON, sends nothing and uses a temp state file. Fixtures: `rain-soon`, `rain-already`, `rain-none`, `rain-low-probability`, `rain-quiet` (use `--now 2026-11-24T23:00`), `rain-in-morning-window`, `rain-before-morning-window` (the fixture's `morning_window` stands in for the briefing state) and `rain-cooldown` (needs a pre-seeded state: `--state /tmp/s.json` after `echo '{"last_alert": <unix time up to 3 h before --now>}' > /tmp/s.json` inside the container).
+
 **iPhone setup:**
 
 1. Install the ntfy app from the App Store.
