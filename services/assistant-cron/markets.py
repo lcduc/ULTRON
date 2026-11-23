@@ -18,7 +18,7 @@ TIMEOUT = 8
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                     "Chrome/124.0 Safari/537.36"}
 VCB_URL = "https://portal.vietcombank.com.vn/Usercontrols/TVPortal.TyGia/pXML.aspx"
-DEFAULT_ITEMS = ["gold", "bitcoin", "sp500", "vnindex", "usd", "eur"]
+DEFAULT_ITEMS = ["bitcoin", "ethereum", "solana", "chainlink", "nasdaq100", "sp500", "vnindex", "eur", "usd", "gold"]
 
 
 def get(url, **kw):
@@ -76,8 +76,8 @@ def er_api(code):
 # name, price format, sources in order
 ITEMS = {
     "gold": ("Gold", "${:,.0f}/oz", [yahoo("GC=F"), coingecko("pax-gold")]),
-    "bitcoin": ("BTC", "${:,.0f}", [binance("BTCUSDT"), coingecko("bitcoin")]),
-    "ethereum": ("ETH", "${:,.0f}", [binance("ETHUSDT"), coingecko("ethereum")]),
+    "bitcoin": ("BTC", "${:,.2f}", [binance("BTCUSDT"), coingecko("bitcoin")]),
+    "ethereum": ("ETH", "${:,.2f}", [binance("ETHUSDT"), coingecko("ethereum")]),
     "solana": ("SOL", "${:,.2f}", [binance("SOLUSDT"), coingecko("solana")]),
     "chainlink": ("LINK", "${:,.2f}", [binance("LINKUSDT"), coingecko("chainlink")]),
     "sp500": ("S&P 500", "{:,.0f}", [yahoo("^GSPC")]),
