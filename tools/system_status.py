@@ -242,7 +242,8 @@ class Tools:
             if "util" in g:
                 parts.append(f"{g['util']:.0f}% busy")
             if "used" in g and "total" in g:
-                parts.append(f"VRAM {g['used'] / GIB:.1f} of {g['total'] / GIB:.1f} GB")
+                parts.append(f"VRAM {g['used'] / GIB:.1f} of {g['total'] / GIB:.1f} GB "
+                             "(mostly reserved by the loaded model, so high use is normal)")
             if "power" in g:
                 parts.append(f"{g['power']:.0f} W")
             lines.append("GPU: " + ", ".join(parts))
