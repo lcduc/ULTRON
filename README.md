@@ -4,7 +4,11 @@ A private AI butler that runs on your own PC. No cloud AI: the model, your chats
 
 [![Ultron demo video](docs/assets/ultron-demo.jpg)](docs/assets/ultron-demo.mp4)
 
-Click the picture to open the demo video. Project page: [docs/index.html](docs/index.html) (also published with GitHub Pages at https://lcduc.github.io/ULTRON/).
+**One day with Ultron** (49 s): the spoken evening preview, the 06:00 push, a 09:00 briefing you can answer, a rain heads-up, a time-to-leave reminder and a PC check.
+
+[![One day with Ultron](docs/assets/ultron-day.jpg)](docs/assets/ultron-day.mp4)
+
+Click a picture to open its video. Both use a fictional demo user and demo data only. Project page: [docs/index.html](docs/index.html) (also published with GitHub Pages at https://lcduc.github.io/ULTRON/).
 
 ## What it does
 
