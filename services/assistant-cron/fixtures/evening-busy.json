@@ -1,6 +1,6 @@
 {
  "mode": "evening",
- "date": "2026-11-23",
+ "date": "2026-11-24",
  "calendar": [
   {
    "title": "Flight check-in",
@@ -19,19 +19,18 @@
  ],
  "tasks": [
   {
-   "title": "Renew visa form",
-   "due": "2026-11-23",
+   "title": "Book hotel",
+   "due": "2026-11-24",
    "overdue": false
   }
  ],
- "mail": [],
  "weather": {
   "city": "Hanoi",
-  "condition": "partly cloudy",
-  "tmin": 20,
-  "tmax": 27,
-  "rain": 10,
-  "wind": 10
- },
- "news": []
+  "condition": "light rain",
+  "tmin": 19,
+  "tmax": 24,
+  "rain": 70,
+  "wind": 14,
+  "rain_window": null
+ }
 }

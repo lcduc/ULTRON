@@ -1,28 +1,44 @@
-# Settings for the morning briefing and evening preview.
+# Settings for the three briefings: morning weather, office briefing, evening preview.
 # After editing, restart the job: docker compose up -d --force-recreate assistant-cron
 # (run from the compose folder). Test without waiting: see README, "Morning briefing and phone pushes".
 
 timezone: Asia/Ho_Chi_Minh
 
 # Local time (24 h, HH:MM) each briefing is sent. Set a time to "" to turn that briefing off.
+#   morning = weather and clothing tip (names the first event only if it starts before 09:00)
+#   office  = today's schedule, news and markets; working days only (see below)
+#   evening = tomorrow's schedule and weather
 times:
   morning: "06:00"
+  office: "09:00"
   evening: "21:00"
 
-# Which parts go into each briefing. Morning covers today; evening covers tomorrow.
+# Which parts go into each briefing. (Mail is no longer part of any briefing.)
 sections:
   morning:
+    calendar: true    # only to find an event before 09:00
+    weather: true
+  office:
     calendar: true
     tasks: true
-    mail: true
-    weather: true
     news: true
+    markets: true
   evening:
     calendar: true
     tasks: true
-    mail: false
     weather: true
-    news: false
+
+# The office briefing is skipped on days not listed here, on Vietnamese public holidays, and on days
+# with an all-day event whose title contains one of these words (any case, whole words).
+working_days: [Monday, Tuesday, Wednesday, Thursday, Friday]
+day_off_keywords: [Off, Leave, "Nghỉ", OOO, Vacation]
+holiday_calendar: "en.vietnamese#holiday@group.v.calendar.google.com"
+# Only events described as "Public holiday" count (Christmas and similar "Observance" days do not).
+# Extra event titles to treat as holidays anyway, e.g. if Google's descriptions ever change:
+holiday_names: []
+
+# Rows of the Markets table, in order: gold, bitcoin, sp500, vnindex, usd, eur.
+market_items: [gold, bitcoin, sp500, vnindex, usd, eur]
 
 # How long after its time a briefing is still sent, e.g. after the PC was off. Default 4. A briefing
 # whose chat already exists is never sent again, so restarts inside this window are safe.
@@ -42,23 +58,23 @@ channel: ntfy
 # Chat model that writes the text (a name served by the gateway).
 model: ultron
 
-# Two news searches (SearXNG news category, last day). Plain words: SearXNG engines ignore OR.
-# The model picks the headlines.
+# Two news searches (SearXNG news category, last 24 hours). Plain words: SearXNG engines ignore OR.
+# A story whose article cannot be read needs a search snippet of at least news_min_snippet characters.
+news_min_snippet: 200
+# Code reads the top articles; the model picks up to chat_stories and summarizes them.
 news_queries:
   politics: "war elections world politics"
   economy: "gold price stock market bitcoin"
-mail_max_unread: 15
 
 # Limits for the push and the model's answer.
 limits:
   greeting_chars: 140
   tip_chars: 100
-  schedule_items: 6   # schedule items in the push, then "+N more"
-  mail_picks: 3
-  news_picks: 3
+  schedule_items: 6   # schedule items in the evening push, then "+N more"
   title_chars: 40
-  headline_chars: 60
-  chat_news: 6        # headlines in the saved chat
+  chat_stories: 4     # news stories in the office chat
+  headline_words: 10
+  summary_chars: 450
 
 # Who writes the greeting and the clothing tip. (The same butler voice as in Open WebUI chats.)
 persona: >-

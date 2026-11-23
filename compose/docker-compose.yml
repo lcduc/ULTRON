@@ -184,6 +184,7 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
       REMINDERS_STATE: /app/state/reminders.json
+      BRIEFING_STATE: /app/state/briefing.json
     volumes:
       - ../mcp/google-calendar:/mcp:ro
       - ../services/assistant-cron/config.yaml:/app/config.yaml:ro

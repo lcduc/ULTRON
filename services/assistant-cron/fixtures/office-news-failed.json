@@ -1,0 +1,63 @@
+{
+ "mode": "office",
+ "date": "2026-11-24",
+ "calendar": [
+  {
+   "title": "Standup",
+   "all_day": false,
+   "start": "09:30",
+   "end": "09:45",
+   "location": ""
+  },
+  {
+   "title": "Design review",
+   "all_day": false,
+   "start": "11:00",
+   "end": "12:00",
+   "location": "Meeting room B"
+  },
+  {
+   "title": "Lunch with Minh",
+   "all_day": false,
+   "start": "12:30",
+   "end": "13:30",
+   "location": "Quan An Ngon"
+  }
+ ],
+ "tasks": [
+  {
+   "title": "Send monthly report",
+   "due": "2026-11-24",
+   "overdue": false
+  }
+ ],
+ "failed": [
+  "News"
+ ],
+ "markets": {
+  "gold": {
+   "price": 3670,
+   "pct": 4.4
+  },
+  "bitcoin": {
+   "price": 63516,
+   "pct": 4.3
+  },
+  "sp500": {
+   "price": 7280,
+   "pct": 5.4
+  },
+  "vnindex": {
+   "price": 1697,
+   "pct": 0.5
+  },
+  "usd": {
+   "price": 25990,
+   "pct": 0.1
+  },
+  "eur": {
+   "price": 28350,
+   "pct": -0.5
+  }
+ }
+}

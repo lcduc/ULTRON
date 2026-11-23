@@ -1,15 +1,15 @@
 {
- "mode": "morning",
+ "mode": "evening",
+ "date": "2026-11-24",
  "calendar": [],
  "tasks": [],
- "mail": [],
  "weather": {
   "city": "Hanoi",
   "condition": "clear",
   "tmin": 22,
   "tmax": 31,
   "rain": 5,
-  "wind": 8
- },
- "news": []
+  "wind": 14,
+  "rain_window": null
+ }
 }

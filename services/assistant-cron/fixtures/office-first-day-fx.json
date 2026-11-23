@@ -1,0 +1,55 @@
+{
+ "mode": "office",
+ "date": "2026-11-24",
+ "calendar": [],
+ "tasks": [],
+ "news": [
+  {
+   "title": "Parliament passes new coalition budget after overnight vote",
+   "url": "https://news.example.com/budget",
+   "source": "news.example.com",
+   "topic": "politics",
+   "text": "The lower house passed the coalition budget by 212 votes to 198 after an overnight session. The plan raises defence spending by 4 percent and freezes fuel duty for a year. Opposition parties said they would challenge parts of it in court. The finance minister said the budget keeps the deficit under 3 percent of output, in line with the bloc's rules. Markets reacted calmly, with the benchmark bond yield little changed on the day. The upper house votes next week and is expected to approve it without changes."
+  },
+  {
+   "title": "Ceasefire talks resume in Geneva with new mediators",
+   "url": "https://world.example.org/geneva",
+   "source": "world.example.org",
+   "topic": "politics",
+   "text": "Delegations returned to Geneva on Monday for a third round of ceasefire talks, with Swiss and Omani mediators now leading the sessions. Officials said the main sticking point is control of the border crossing, which carries about 40 percent of aid deliveries. A pause in fighting held for a fourth day, the longest since the spring. Diplomats cautioned that a deal could still take weeks."
+  },
+  {
+   "title": "Gold hits record above $3,700 as dollar slides",
+   "url": "https://markets.example.com/gold",
+   "source": "markets.example.com",
+   "topic": "economy",
+   "text": "Gold rose 1.2 percent to a record 3,712 dollars an ounce as the dollar index fell to a four-month low. Traders now price two rate cuts by March after weaker jobs data. Silver gained 2 percent and central bank buying continued, with Poland and India the largest buyers this quarter, according to the World Gold Council. Analysts at two banks raised their year-end targets to 3,900 dollars."
+  }
+ ],
+ "markets": {
+  "gold": {
+   "price": 3670,
+   "pct": 4.4
+  },
+  "bitcoin": {
+   "price": 63516,
+   "pct": 4.3
+  },
+  "sp500": {
+   "price": 7280,
+   "pct": 5.4
+  },
+  "vnindex": {
+   "price": 1697,
+   "pct": 0.5
+  },
+  "usd": {
+   "price": 25990,
+   "pct": null
+  },
+  "eur": {
+   "price": 28350,
+   "pct": null
+  }
+ }
+}
