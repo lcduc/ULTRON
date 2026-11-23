@@ -187,6 +187,14 @@ The audio settings live in Open WebUI's database and override the `AUDIO_*` valu
 2. Open WebUI → **Admin Settings → External Tools → +**: type *MCP (Streamable HTTP)*, URL `http://calendar-mcp:8000/mcp`, auth *Bearer* with the key.
 3. On each model, turn on the new MCP tool and turn off the old *Google Calendar* tool, so the model does not see the same tools twice.
 
+### System status
+
+`tools/system_status.py` is a read-only Open WebUI tool. Ask "How's the PC, Ultron?", "Is everything running?" or "GPU temperature?" and the butler answers from live figures: GPU temperature, load, VRAM and power, whether the model server is ready, the generation speed in tokens per second, and whether each service is up. Problems are listed first.
+
+It only sends GET requests. The GPU and speed numbers come from Prometheus with the same queries as the Grafana dashboard, so they match it. The model server is checked through `/health` only, which never loads or swaps a model. Each service gets a quick probe (2 s limit, all at once) from inside the Open WebUI container. If Prometheus is down it still reports the probes. The speed is the 5-minute average, and "no recent requests" is reported when the model has been idle.
+
+**Install:** Open WebUI → **Workspace → Tools → +**, paste `tools/system_status.py`, save with id `system_status`. Then **Admin → Settings → Models**, edit `ultron`, `ultron-think` and `ultron-agent` and tick *System Status* under Tools. The valves list the Prometheus and model-server addresses and the services to probe.
+
 ### Open WebUI settings made in the admin pages
 
 Settings saved in the admin UI live in Open WebUI's database and override `.env` values. Record changes here so a rebuild can repeat them.
