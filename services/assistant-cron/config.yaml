@@ -37,8 +37,8 @@ holiday_calendar: "en.vietnamese#holiday@group.v.calendar.google.com"
 # Extra event titles to treat as holidays anyway, e.g. if Google's descriptions ever change:
 holiday_names: []
 
-# Rows of the Markets table, in order: gold, bitcoin, sp500, nasdaq100, vnindex, usd, eur.
-market_items: [gold, bitcoin, sp500, nasdaq100, vnindex, usd, eur]
+# Rows of the Markets table, in order: bitcoin, ethereum, solana, chainlink, sp500, nasdaq100, vnindex, usd, eur, gold.
+market_items: [bitcoin, ethereum, solana, chainlink, sp500, nasdaq100, vnindex, usd, eur, gold]
 
 # How long after its time a briefing is still sent, e.g. after the PC was off. Default 4. A briefing
 # whose chat already exists is never sent again, so restarts inside this window are safe.

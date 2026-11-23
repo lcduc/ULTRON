@@ -49,9 +49,11 @@ def coingecko(coin):
     return fetch
 
 
-def binance_btc():
-    d = get("https://api.binance.com/api/v3/ticker/24hr", params={"symbol": "BTCUSDT"}).json()
-    return {"price": float(d["lastPrice"]), "pct": float(d["priceChangePercent"])}
+def binance(symbol):
+    def fetch():
+        d = get("https://api.binance.com/api/v3/ticker/24hr", params={"symbol": symbol}).json()
+        return {"price": float(d["lastPrice"]), "pct": float(d["priceChangePercent"])}
+    return fetch
 
 
 def vietcombank(code):
@@ -74,7 +76,10 @@ def er_api(code):
 # name, price format, sources in order
 ITEMS = {
     "gold": ("Gold", "${:,.0f}/oz", [yahoo("GC=F"), coingecko("pax-gold")]),
-    "bitcoin": ("Bitcoin", "${:,.0f}", [coingecko("bitcoin"), binance_btc]),
+    "bitcoin": ("BTC", "${:,.0f}", [binance("BTCUSDT"), coingecko("bitcoin")]),
+    "ethereum": ("ETH", "${:,.0f}", [binance("ETHUSDT"), coingecko("ethereum")]),
+    "solana": ("SOL", "${:,.2f}", [binance("SOLUSDT"), coingecko("solana")]),
+    "chainlink": ("LINK", "${:,.2f}", [binance("LINKUSDT"), coingecko("chainlink")]),
     "sp500": ("S&P 500", "{:,.0f}", [yahoo("^GSPC")]),
     "nasdaq100": ("Nasdaq 100", "{:,.0f}", [yahoo("^NDX")]),
     "vnindex": ("VN-Index", "{:,.0f}", [yahoo("^VNINDEX.VN")]),
