@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import sys
+import tempfile
 import time
 import unicodedata
 import uuid
@@ -26,6 +27,8 @@ from zoneinfo import ZoneInfo
 
 import requests
 import yaml
+
+import reminders
 
 CONFIG_PATH = Path(os.environ.get("BRIEFING_CONFIG", "/app/config.yaml"))
 HEARTBEAT = Path("/tmp/heartbeat")
@@ -625,13 +628,13 @@ def post_chat(form, cfg):
     return webui_api("POST", "/api/v1/chats/new", form)["id"]
 
 
-def create_chat(cfg, mode, today, text, test=False):
+def create_chat(cfg, mode, today, text, test=False, title=None, user_line=None):
     """Saves the briefing as a chat: a user line, then the briefing as Ultron's answer. Returns the id."""
     model = cfg.get("model", "ultron")
-    title = chat_title(mode, today, test)
+    title = title or chat_title(mode, today, test)
     uid, aid, now = str(uuid.uuid4()), str(uuid.uuid4()), int(time.time())
     user = {"id": uid, "parentId": None, "childrenIds": [aid], "role": "user",
-            "content": f"{mode.capitalize()} briefing", "timestamp": now, "models": [model]}
+            "content": user_line or f"{mode.capitalize()} briefing", "timestamp": now, "models": [model]}
     bot = {"id": aid, "parentId": uid, "childrenIds": [], "role": "assistant", "content": text,
            "model": model, "modelName": model, "modelIdx": 0, "timestamp": now, "done": True}
     chat = {"title": title, "models": [model], "messages": [user, bot],
@@ -647,7 +650,7 @@ def delete_old_chats(cfg):
     while True:
         chats = webui_api("GET", f"/api/v1/chats/?page={page}&include_folders=true") or []
         for c in chats:
-            if c.get("title", "").startswith(CHAT_PREFIX) and c.get("updated_at", time.time()) < cutoff:
+            if c.get("title", "").startswith(tuple(CHAT_PREFIXES)) and c.get("updated_at", time.time()) < cutoff:
                 webui_api("DELETE", f"/api/v1/chats/{c['id']}")
                 removed += 1
         if not chats:
@@ -658,7 +661,7 @@ def delete_old_chats(cfg):
 
 
 # Title prefixes of chats the assistant creates; all of them are kept in the chat_folder.
-CHAT_PREFIXES = [CHAT_PREFIX]
+CHAT_PREFIXES = [CHAT_PREFIX, "Reminder ·"]
 
 
 def tidy_chats(cfg):
@@ -691,10 +694,10 @@ def tidy_chats(cfg):
         log.warning("chats not tidied into the folder (%s)", cut(e, 120))
 
 
-def make_chat(cfg, mode, today, text, test=False):
+def make_chat(cfg, mode, today, text, test=False, title=None, user_line=None):
     """Creates the chat and cleans up old ones. Never raises: returns the chat id or ''."""
     try:
-        cid = create_chat(cfg, mode, today, text, test)
+        cid = create_chat(cfg, mode, today, text, test, title, user_line)
         log.info("chat created: %s", cid)
     except Exception as e:
         log.warning("chat not created (%s); the push will link to a new chat", cut(e, 120))
@@ -789,6 +792,7 @@ def due(cfg, mode, now, done):
 
 def scheduler():
     done = {}
+    last_reminders = 0.0
     log.info("scheduler started")
     if os.environ.get("ULTRON_API_KEY"):
         tidy_chats(load_config())
@@ -808,6 +812,10 @@ def scheduler():
                         run(mode)
                     except Exception:
                         log.exception("%s briefing failed", mode)
+            rs = reminders.settings(cfg)
+            if rs["enabled"] and time.monotonic() - last_reminders >= float(rs["check_minutes"]) * 60:
+                last_reminders = time.monotonic()
+                reminders.check(sys.modules[__name__], cfg, now)
         except Exception:
             log.exception("scheduler loop error")
         time.sleep(20)
@@ -825,7 +833,22 @@ def main():
     ap.add_argument("--chat", action="store_true", help="create the briefing chat even in a dry run or with --fixture")
     ap.add_argument("--show-chat", action="store_true", help="dry run: also print the chat text")
     ap.add_argument("--raw", action="store_true", help="dry run: also print the section data")
+    ap.add_argument("--reminders", action="store_true", help="check time-to-leave reminders once")
+    ap.add_argument("--now", help="with --reminders: fake clock, local time like 2026-11-24T13:20")
+    ap.add_argument("--state", help="with --reminders: state file (dry runs default to a temp test file)")
     args = ap.parse_args()
+    if args.reminders:
+        cfg = load_config()
+        tz = ZoneInfo(cfg["timezone"])
+        if not args.dry_run and not reminders.settings(cfg)["enabled"]:
+            ap.error("reminders are disabled in config.yaml; use --dry-run")
+        if args.dry_run and not args.state:
+            args.state = os.path.join(tempfile.gettempdir(), "reminders-dryrun-state.json")
+        now = datetime.fromisoformat(args.now).replace(tzinfo=tz) if args.now else datetime.now(tz)
+        reminders.check(sys.modules[__name__], cfg, now,
+                        state_path=Path(args.state) if args.state else reminders.STATE_PATH,
+                        dry_run=args.dry_run, no_model=args.no_model, fixture=args.fixture, chat=args.chat)
+        return
     if args.fixture and not args.dry_run:
         ap.error("--fixture only works with --dry-run (it never sends)")
     if args.run or args.fixture:

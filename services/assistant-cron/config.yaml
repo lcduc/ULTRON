@@ -75,3 +75,18 @@ chat_folder: "Notifications"
 # The model is retried for this long (GPU busy, model loading) before the fallbacks are used.
 model_wait_minutes: 30
 model_timeout_seconds: 180
+
+# "Time to leave" pushes for timed calendar events that have a location (not declined or cancelled).
+# Leave time = start - travel_minutes (- rain_extra_minutes if rain is likely at the start hour);
+# the push comes notice_minutes before that. Sent once per event and start time. Nothing is sent
+# between quiet_start and quiet_end. Keep enabled: false until you want them.
+reminders:
+  enabled: false
+  check_minutes: 5          # how often the calendar is checked
+  lookahead_hours: 2        # only events starting within this window
+  travel_minutes: 30
+  rain_extra_minutes: 10
+  rain_threshold: 40        # rain is "likely" at this precipitation probability % or more (or a rain weather code)
+  notice_minutes: 15
+  quiet_start: "22:00"
+  quiet_end: "06:00"

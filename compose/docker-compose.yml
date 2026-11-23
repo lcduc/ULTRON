@@ -183,10 +183,12 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
+      REMINDERS_STATE: /app/state/reminders.json
     volumes:
       - ../mcp/google-calendar:/mcp:ro
       - ../services/assistant-cron/config.yaml:/app/config.yaml:ro
       - ../services/assistant-cron/fixtures:/app/fixtures:ro
+      - assistant-state:/app/state   # sent-reminder record, survives restarts
     read_only: true
     mem_limit: 256m
     depends_on:
@@ -351,6 +353,7 @@ volumes:
   grafana-data:
   uptime-kuma-data:
   ntfy-data:
+  assistant-state:
 
 networks:
   agent:
