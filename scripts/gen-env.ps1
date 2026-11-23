@@ -72,7 +72,7 @@ function Set-EnvLine([string]$name, [string]$value) {
 $changed = $false
 if (Test-Missing 'ULTRON_PUBLIC_URL') {
     $host_ = $null
-    $ts = 'C:\Program Files\Tailscale	ailscale.exe'
+    $ts = 'C:\Program Files\Tailscale\tailscale.exe'
     if (Test-Path $ts) {
         try { $host_ = ((& $ts status --json | ConvertFrom-Json).Self.DNSName).TrimEnd('.') } catch { }
     }
@@ -85,6 +85,7 @@ if (Test-Missing 'ULTRON_PUBLIC_URL') {
 if (Test-Missing 'NTFY_PASSWORD') { Set-EnvLine 'NTFY_PASSWORD' (New-HexSecret 16); $changed = $true }
 if (Test-Missing 'NTFY_TOKEN')    { Set-EnvLine 'NTFY_TOKEN' ('tk_' + (New-RandomString 29 'abcdefghijklmnopqrstuvwxyz0123456789')); $changed = $true }
 if (Test-Missing 'NTFY_TOPIC')    { Set-EnvLine 'NTFY_TOPIC' ('ultron-' + (New-HexSecret 8)); $changed = $true }
+if (Test-Missing 'VOICE_KEY')     { Set-EnvLine 'VOICE_KEY' (New-HexSecret 32); $changed = $true }
 if ($changed) {
     [System.IO.File]::WriteAllText($envFile, (($lines -join "`n") + "`n"), $utf8)
     $written += ($envFile + ' (phone push settings)')

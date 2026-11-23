@@ -12,7 +12,8 @@ import requests
 
 log = logging.getLogger("briefing")
 
-DEFAULTS = {"enabled": True, "voice": "am_michael", "max_items": 6, "max_words": 90, "title_chars": 60}
+DEFAULTS = {"enabled": True, "voice": "am_michael", "max_items": 6, "max_words": 90, "title_chars": 60,
+            "attach_to_push": False}
 MAX_BYTES = 2 * 1024 * 1024
 NUMBERS = ["twelve", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven"]
 TENS = {20: "twenty", 30: "thirty", 40: "forty", 50: "fifty"}

@@ -186,6 +186,9 @@ services:
       REMINDERS_STATE: /app/state/reminders.json
       RAIN_STATE: /app/state/rain.json
       BRIEFING_STATE: /app/state/briefing.json
+      VOICE_KEY: ${VOICE_KEY:-}
+    ports:
+      - "127.0.0.1:2587:8090"   # tonight's spoken briefing; tailnet: tailscale serve https 8445
     volumes:
       - ../mcp/google-calendar:/mcp:ro
       - ../services/assistant-cron/config.yaml:/app/config.yaml:ro

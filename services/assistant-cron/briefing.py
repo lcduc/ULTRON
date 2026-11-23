@@ -38,6 +38,7 @@ import news
 import rain
 import reminders
 import spoken
+import voice
 
 CONFIG_PATH = Path(os.environ.get("BRIEFING_CONFIG", "/app/config.yaml"))
 STATE_PATH = Path(os.environ.get("BRIEFING_STATE", "/app/state/briefing.json"))
@@ -963,7 +964,13 @@ def run(mode=None, dry_run=False, no_model=False, fixture=None, chat=False, show
         if raw:
             print("\n=== RAW ===\n" + json.dumps({"failed": failed, **data}, ensure_ascii=False, indent=1))
         return
-    send(cfg, title, body, click, mp3, f"evening-{day.isoformat()}.mp3")
+    if mp3 and not fixture:
+        try:
+            voice.save(day, mp3, script_text)
+        except Exception as e:
+            log.warning("could not save the clip (%s)", cut(e, 120))
+    attach = mp3 if spoken.settings(cfg)["attach_to_push"] else None
+    send(cfg, title, body, click, attach, f"evening-{day.isoformat()}.mp3")
 
 
 def due(cfg, mode, now, done):
@@ -983,6 +990,10 @@ def scheduler():
     last_reminders = 0.0
     last_rain = 0.0
     log.info("scheduler started")
+    try:
+        voice.start(lambda: load_config()["timezone"])
+    except Exception as e:
+        log.warning("voice server not started (%s)", cut(e, 120))
     if os.environ.get("ULTRON_API_KEY"):
         tidy_chats(load_config())
     while True:

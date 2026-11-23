@@ -59,6 +59,8 @@ if (Test-Path $ts) {
     & $ts serve --bg 3000
     # ntfy (phone pushes) on a second HTTPS port; the chat UI stays on the root.
     & $ts serve --bg --https=8443 http://127.0.0.1:2586
+    # Tonight's spoken briefing (the iPhone Shortcut fetches it); tailnet only, never funnel.
+    & $ts serve --bg --https=8445 http://127.0.0.1:2587
 }
 
 # 6. Load the Whisper model in the background, so the first voice message is not the slow one.
