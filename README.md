@@ -126,7 +126,7 @@ Three cloud models can be used next to the local ones, each with your own API ke
 An empty key turns that provider off. After any change: `docker compose -p ultron up -d litellm paper-digest`. Once, after the first setup: `python scripts\allow-cloud-models.py` (lets the stack's gateway key use the three models; `--remove` undoes it).
 
 - **Chat:** they appear in Open WebUI's model picker. A chat with one of them is sent to that provider; the `ultron` models stay fully local.
-- **Paper digest:** only `writer_model` (writes, checks and fixes Deep reads) in `services\paper-digest\config.yaml` is `cloud`: the first provider in `CLOUD_PRIORITY` that works, then the local `ultron`. A provider that fails (no key, quota, outage) is skipped for 10 minutes, and the audit log records each switch. Only public paper text and your topic profile are sent. Follow-ups in Deep-read chats (`deep_chat_model`) and `/doc` (`doc_model`) are local (`ultron`); for a hard question, switch that chat to `cloud-claude` in Open WebUI's model picker. Any of the three settings takes `cloud`, a single model (`cloud-gemini`, …) or `ultron`.
+- **Paper digest:** currently not used: the digest runs Overviews only (`deep_reads: false`). With Deep reads on, only `writer_model` (writes, checks and fixes Deep reads) in `services\paper-digest\config.yaml` is `cloud`: the first provider in `CLOUD_PRIORITY` that works, then the local `ultron`. A provider that fails (no key, quota, outage) is skipped for 10 minutes, and the audit log records each switch. Only public paper text and your topic profile are sent. Follow-ups in Deep-read chats (`deep_chat_model`) and `/doc` (`doc_model`) are local (`ultron`); for a hard question, switch that chat to `cloud-claude` in Open WebUI's model picker. Any of the three settings takes `cloud`, a single model (`cloud-gemini`, …) or `ultron`.
 
 `compose\.env` follows the sections of `compose\.env.example`. To bring an older `.env` into that layout without changing any value: `python scripts\tidy-env.py` (writes a backup first; `--check` only shows what would change).
 
@@ -343,20 +343,21 @@ The `ultron` model is called once per briefing: a greeting and clothing tip for 
 
 ### Paper digest (research papers, nightly)
 
-**What runs:** the `paper-digest` container (`services/paper-digest/`, plan in `logs/plans/paper-digest.md`). Every night at 01:00 it collects new papers (arXiv: cs.RO, cs.CL, cs.LG, cs.AI, cs.CV, cs.IR, cs.MA, cs.SD, eess.AS, eess.SY; Hugging Face Daily Papers; Semantic Scholar), scores them for GenAI and robotics, and writes three levels of report:
+**What runs:** the `paper-digest` container (`services/paper-digest/`, plan in `logs/plans/paper-digest.md`). Every night at 01:00 it collects new papers (arXiv: cs.RO, cs.CL, cs.LG, cs.AI, cs.CV, cs.IR, cs.MA, cs.SD, eess.AS, eess.SY; Hugging Face Daily Papers; Semantic Scholar), scores them for GenAI and robotics, and writes, on the local model (no cloud, no cost):
 
 | Level | What you get | Where |
 |---|---|---|
-| Deep read | Full A–M tutor report; only for papers that change the foundations | Its own chat, "Paper · <title>", with the paper's text loaded for follow-ups |
 | Overview | About one page (A, B, C, D, G, H, J, L) | The digest chat, "Papers · <date>" |
 | Brief | One or two lines and the link | The digest chat |
 
-All chats are in the **Papers** folder. A push arrives at 09:00. Settings (topics, weights, budget, times, models) are in `services/paper-digest/config.yaml`; prompts in `services/paper-digest/prompts/`.
+**Foundational papers** (a new idea others will build on, not just a better number) are flagged: listed first under "Foundational: worth a deep study", and marked in their Overview. Their PDF is saved to Drive with the other Overviews. To study one properly, bring it to Claude.
 
-**Replies in the digest chat:** `deep 3` gives paper 3 a Deep read (straight away when the GPU is free). `3 skip`, `5 overview`, `7 brief` correct the scoring; the next nights learn from them.
+All chats are in the **Papers** folder. A push arrives at 09:00 ("6 overviews (1 foundational), 18 briefs"). Settings (topics, weights, budget, times, models) are in `services/paper-digest/config.yaml`; prompts in `services/paper-digest/prompts/`.
 
-**In a Deep-read chat:** ask anything, or use `/eli5`, `/visual`, `/deep`, `/code`, `/compare`, `/quiz`, `/defend`. `/doc` saves the full report, updated with the follow-ups, as a Google Doc in Drive (see "Paper digest: Google Drive" above).
+**Replies in the digest chat:** `3 skip`, `5 brief`, `7 overview` correct the scoring, and `4 deep` says paper 4 is foundational; the next nights learn from them.
 
-**Your own paper:** paste an arXiv or PDF link into any Ultron chat and ask Ultron to read it (tool `paper_reader`). Setup, once: run `scripts\gen-env.ps1` (it adds a random `PAPER_QUEUE_KEY` to `compose\.env` and changes nothing else that is set), recreate the container (`docker compose -p ultron up -d paper-digest`), then run `python scripts/install-paper-tool.py`.
+**Full Deep reads (off):** with `deep_reads: true` in `config.yaml`, foundational papers instead get a full A–M tutor report in their own chat ("Paper · <title>"), written by `writer_model` (cloud), with follow-ups and `/doc` (saves the report, updated with the follow-ups, as a Google Doc in Drive; see "Paper digest: Google Drive" above). `deep 3` then queues a Deep read of paper 3.
+
+**Your own paper:** paste an arXiv or PDF link into any Ultron chat and ask Ultron to read it (tool `paper_reader`). You get an Overview in its own chat and a push (a Deep read when `deep_reads` is on). Setup, once: run `scripts\gen-env.ps1` (it adds a random `PAPER_QUEUE_KEY` to `compose\.env` and changes nothing else that is set), recreate the container (`docker compose -p ultron up -d paper-digest`), then run `python scripts/install-paper-tool.py`.
 
 **By hand:** `docker compose -p ultron exec paper-digest python digest.py --run-now [--dry-run] [--no-push] [--no-deep] [--limit N]`. Audit logs of every step: the `paper-state` volume, `audit/`.

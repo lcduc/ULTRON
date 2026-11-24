@@ -221,6 +221,8 @@ def select(cfg: dict | None, scored: list[dict]) -> list[dict]:
     budget = float(c.get("budget_minutes", 90))
     mins = {"deep": 25.0, "overview": 5.0, "brief": 0.5, **(c.get("minutes_per_level") or {})}
     max_briefs = int(c.get("max_briefs", 25))
+    if not c.get("deep_reads", True):   # Overviews only: a foundational paper costs an Overview's time
+        mins["deep"] = mins["overview"]
 
     papers = [dict(p) for p in scored]
     forced = [p for p in papers if p.get("fallback")]

@@ -13,7 +13,8 @@ poll_minutes: 2          # how often the Papers folder is checked for replies an
 
 # ---------------------------------------------------------------- models (names served by LiteLLM)
 model: ultron            # scoring, notes, Overviews, digest chat; fallback for everything
-writer_model: cloud      # Deep-read writing, critique and fixes (W3 steps 6-8): the only cloud use
+deep_reads: false        # Overviews only; foundational papers are flagged (true: full Deep reads)
+writer_model: cloud      # Deep-read writing, critique and fixes (W3 steps 6-8): used only when deep_reads is true
 deep_chat_model: ultron  # answers follow-ups in Deep-read chats; for a hard question, switch that
                          # chat to cloud-claude in Open WebUI's model picker
 doc_model: ultron        # /doc: merges your follow-ups into the report before it goes to Drive

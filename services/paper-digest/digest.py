@@ -151,6 +151,16 @@ def counts(items) -> dict:
     return out
 
 
+def found_count(items) -> int:
+    """Foundational papers shown as Overviews (the Overviews-only setup)."""
+    return sum(1 for p in items if p.get("foundational") and p["level"] == "overview")
+
+
+def deep_reads_on(c) -> bool:
+    """False (config deep_reads: false): no Deep reads; foundational papers become flagged Overviews."""
+    return bool(c.get("deep_reads", True))
+
+
 def counts_all(items) -> dict:
     out: dict[str, int] = {}
     for p in items:
@@ -159,8 +169,12 @@ def counts_all(items) -> dict:
     return out
 
 
-def counts_text(cn) -> str:
-    return f"{plural(cn['deep'], 'deep read')}, {plural(cn['overview'], 'overview')}, {plural(cn['brief'], 'brief')}"
+def counts_text(cn, found: int = 0) -> str:
+    parts = [plural(cn["deep"], "deep read")] if cn.get("deep") else []
+    ov = plural(cn["overview"], "overview")
+    if found:
+        ov += f" ({found} foundational)"
+    return ", ".join(parts + [ov, plural(cn["brief"], "brief")])
 
 
 def compose_digest(c, items, reports, chats, notes, extra_notes=(), dry=False) -> str:
@@ -168,7 +182,7 @@ def compose_digest(c, items, reports, chats, notes, extra_notes=(), dry=False) -
     reports: {paper id: {"markdown": ...}}; chats: {paper id: chat id} of the deep-read chats."""
     show = bool(c.get("show_scores"))
     items = sorted(items, key=lambda p: p.get("number", 0))
-    head = f"**Tonight: {counts_text(counts(items))}.**"
+    head = f"**Tonight: {counts_text(counts(items), found_count(items))}.**"
     if notes:
         head += " Sources: " + "; ".join(notes) + "."
     if extra_notes:
@@ -192,6 +206,16 @@ def compose_digest(c, items, reports, chats, notes, extra_notes=(), dry=False) -
                 block.append(scores_line(p))
             out.append("\n\n".join(block))
 
+    found = [p for p in items if p.get("foundational") and p["level"] == "overview"]
+    if found:
+        out.append("## Foundational: worth a deep study")
+        lines = ["These change the foundations, not just the numbers. Their Overview is below and the PDF is "
+                 "in Drive; to study one properly, bring it to Claude."]
+        for p in found:
+            title = f"[{p['title']}]({p['url']})" if p.get("url") else p["title"]
+            lines.append(f"- **{p['number']}.** {title}: {p.get('why') or p.get('one_liner', '')}")
+        out.append("\n".join(lines))
+
     ov = [p for p in items if p["level"] == "overview"]
     if ov:
         out.append("## Overviews")
@@ -200,6 +224,8 @@ def compose_digest(c, items, reports, chats, notes, extra_notes=(), dry=False) -
             md = re.sub(r"^# .*\n+", "", md.lstrip())       # the paper title is already the heading
             md = re.sub(r"(?m)^### ", "#### ", md)           # sections sit below the paper's ### heading
             note = f" ({p['note']})" if p.get("note") else ""
+            if p.get("foundational"):
+                note = " · Foundational" + note
             link = f"[arXiv]({p['url']})" if p.get("url") else ""
             sc = scores_line(p) if show else ""
             out.append("\n\n".join(x for x in [f"### {p['number']}. {p['title']}{note}", link, md, sc] if x))
@@ -221,9 +247,13 @@ def compose_digest(c, items, reports, chats, notes, extra_notes=(), dry=False) -
                     lines.append(f"   {scores_line(p)}")
             out.append("\n".join(lines))
 
-    out.append("---\nReply in this chat with `deep 3` to get a full read of paper 3, or `3 skip` if it was not worth "
-               "showing; the next nights learn from your replies. In a deep-read chat, type `/doc` to save the "
-               "updated report to Google Docs in Drive.")
+    if deep_reads_on(c):
+        out.append("---\nReply in this chat with `deep 3` to get a full read of paper 3, or `3 skip` if it was not "
+                   "worth showing; the next nights learn from your replies. In a deep-read chat, type `/doc` to save "
+                   "the updated report to Google Docs in Drive.")
+    else:
+        out.append("---\nScoring wrong? Reply in this chat with `3 skip`, `5 brief`, `7 overview`, or `4 deep` if "
+                   "paper 4 is foundational; the next nights learn from your replies.")
     return "\n\n".join(out)
 
 
@@ -336,8 +366,18 @@ def run_night(opts: Opts, now: datetime | None = None) -> dict:
         by[level].append(p)
 
     reports_mod = mod("reports")
+    gate = int((c.get("deep_gate") or {}).get("foundational", 3))
+    if not deep_reads_on(c):   # Overviews only: flag papers of foundational value (capped-track ones too)
+        for lv in ("deep", "overview"):
+            for p in by[lv]:
+                if lv == "deep" or (p.get("scores") or {}).get("foundational", 0) >= gate:
+                    p["foundational"] = True
     for p in list(by["deep"]):   # Deep reads, clock-checked; failures fall back to overviews
         by["deep"].remove(p)
+        if not deep_reads_on(c):   # Overviews only: the paper stays flagged as foundational
+            p["level"] = "overview"
+            by["overview"].insert(0, p)
+            continue
         if opts.no_deep:
             demote(p, "overview", "deep reads are off")
             continue
@@ -391,7 +431,7 @@ def run_night(opts: Opts, now: datetime | None = None) -> dict:
     if opts.dry_run:
         print(text)
     top = shown[0] if shown else None
-    body = counts_text(counts(shown)) + (f"\nTop: {cut(top['title'], 90)}" if top else "")
+    body = counts_text(counts(shown), found_count(shown)) + (f"\nTop: {cut(top['title'], 90)}" if top else "")
 
     if not opts.dry_run:
         err = None
@@ -440,8 +480,10 @@ def process_queue_item(item) -> bool:
     run = engine.Run("queue")
     try:
         paper = mod("collect").paper_from_url(url)
-        paper["level"] = "deep"
-        d = mod("reports").deep_read(run, c, paper, H)
+        deep = deep_reads_on(c)
+        level = "deep" if deep else "overview"   # Overviews only: a pasted link gets an Overview chat
+        paper["level"] = level
+        d = mod("reports").deep_read(run, c, paper, H) if deep else mod("reports").overview(run, c, paper)
         paper["short_title"] = d.get("short_title") or short_name(paper["title"])
         today = datetime.now(tz_of(c)).date()
         cid = deep_chat(c, paper, d)
@@ -449,12 +491,13 @@ def process_queue_item(item) -> bool:
             raise RuntimeError("the chat could not be saved")
         if not H.get(paper["id"]):
             record_paper(H, {"scores": {}, "track": "other_ai", "one_liner": "", "why": "", "total": 0.0, **paper},
-                         "deep", today)
+                         level, today)
         save_report(H, paper, d, cid)
-        if "deep" in set(c.get("drive_save_levels", ["deep", "overview"])):
+        if level in set(c.get("drive_save_levels", ["deep", "overview"])):
             save_to_drive(H, paper, d.get("fulltext"), today)
         H.queue_done(qid, True, "")
-        common.push("Deep read ready", f"{cut(paper['title'], 120)}", common.chat_url(cid))
+        common.push("Deep read ready" if deep else "Overview ready", f"{cut(paper['title'], 120)}",
+                    common.chat_url(cid))
         return True
     except Exception as e:
         reason = cut(e, 140)
@@ -537,7 +580,7 @@ def handle_digest_chat(row, tz, handled: set) -> list[str]:
                 log.info("reply %s %d: no paper %d in the %s digest", level, number, number, day)
                 continue
             H.feedback_add(pid, level, "reply")
-            if level == "deep":
+            if level == "deep" and deep_reads_on(engine.cfg()):
                 rec = H.get(pid) or {}
                 if rec.get("level") != "deep" and rec.get("url"):
                     H.queue_add(rec["url"], "reply")

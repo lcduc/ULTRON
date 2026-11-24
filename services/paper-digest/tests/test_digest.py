@@ -257,13 +257,32 @@ class QueueAndPollTests(unittest.TestCase):
         msgs = [{"id": "m1", "role": "user", "content": "Tonight's papers"},
                 {"id": "m2", "role": "user", "content": "deep 1\n2 deep\n1 skip\ndeep 99"},
                 {"id": "m3", "role": "assistant", "content": "Noted."}]
-        with mock.patch.dict(sys.modules, fakes), mock.patch.object(common, "chat_messages", lambda cid: msgs):
+        with mock.patch.dict(sys.modules, fakes), mock.patch.object(common, "chat_messages", lambda cid: msgs),                 mock.patch.object(engine, "cfg", lambda: {**CFG, "deep_reads": True}):
             used = digest.handle_digest_chat({"id": "cd", "created_at": 1795000000}, TZ, {"m1"})
         self.assertEqual(used, ["m2"])
         log = FakeHistory.log
         self.assertEqual(log.count(("queue_add", "https://arxiv.org/abs/2511.00001")), 1)   # paper 2 already deep
         self.assertIn(("fb", "arxiv:2511.00001", "skip"), log)
         self.assertIn(("fb", "arxiv:2511.00002", "deep"), log)
+
+    def test_digest_replies_overviews_only(self):
+        """deep_reads off: `deep 1` is only feedback (marks it foundational), nothing is queued."""
+        fakes, _ = install_fakes([])
+        FakeHistory.papers = {"arxiv:2511.00001": {"level": "overview", "url": "https://arxiv.org/abs/2511.00001"}}
+        msgs = [{"id": "m2", "role": "user", "content": "deep 1"}]
+        with mock.patch.dict(sys.modules, fakes), mock.patch.object(common, "chat_messages", lambda cid: msgs),                 mock.patch.object(engine, "cfg", lambda: {**CFG, "deep_reads": False}):
+            digest.handle_digest_chat({"id": "cd", "created_at": 1795000000}, TZ, set())
+        self.assertIn(("fb", "arxiv:2511.00001", "deep"), FakeHistory.log)
+        self.assertFalse(any(e[0] == "queue_add" for e in FakeHistory.log))
+
+    def test_overviews_only_flags_foundational(self):
+        items = [dict(paper(1, "overview"), foundational=True, why="New way to train robot policies."),
+                 paper(2, "overview"), paper(3, "brief")]
+        md = digest.compose_digest({**CFG, "deep_reads": False}, items, {}, {}, [])
+        self.assertIn("1 foundational", md)
+        self.assertIn("## Foundational: worth a deep study", md)
+        self.assertIn("· Foundational", md)
+        self.assertNotIn("deep read", md.split("---")[0].lower())
 
     def doc_row_test(self, msgs, handled, enabled=True):
         fakes, drive = install_fakes([])
@@ -331,3 +350,14 @@ class HttpTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OverviewsOnlyRunTests(NightlyTests):
+    def test_foundational_becomes_flagged_overview(self):
+        sel = [paper(1, "deep"), paper(2, "overview"), paper(3, "brief")]
+        with mock.patch.dict(CFG, {"deep_reads": False}):
+            res, created, _ = self.run_it(sel, datetime(2026, 11, 25, 2, 0, tzinfo=TZ))
+        self.assertEqual(res["counts"]["deep"], 0)
+        self.assertEqual([c["title"] for c in created], ["Papers · Wed 25 Nov"])   # no deep-read chat
+        self.assertIn("## Foundational: worth a deep study", created[0]["text"])
+        self.assertIn("foundational", res["push"]["body"])
