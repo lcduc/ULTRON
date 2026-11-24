@@ -41,24 +41,27 @@ model_list:
           enable_thinking: false
 
   # ---------------------------------------------------------------- cloud models (optional)
-  # Each works only when its key is set in compose/.env (OPENAI_CLOUD_API_KEY, ANTHROPIC_API_KEY,
-  # GEMINI_API_KEY); without a key a call fails and the paper digest falls back to `ultron`.
+  # Keys and model ids come from compose/.env (section "Cloud models"): OPENAI_CLOUD_API_KEY +
+  # OPENAI_CLOUD_MODEL, ANTHROPIC_API_KEY + ANTHROPIC_MODEL, GEMINI_API_KEY + GEMINI_MODEL.
+  # A model without a key fails, and the paper digest moves on (CLOUD_PRIORITY, then `ultron`).
   # They also appear in Open WebUI's model picker: a chat with one of them is sent to that provider.
-  # To use another model of a provider, change its id here (e.g. gemini/gemini-3.5-flash), then
-  # docker compose -p ultron up -d litellm.
+  # After changing a key or model in .env: docker compose -p ultron up -d litellm
   - model_name: cloud-gpt
     litellm_params:
-      model: openai/gpt-6.2-sol
+      model: os.environ/OPENAI_CLOUD_MODEL
+      custom_llm_provider: openai
       api_key: os.environ/OPENAI_CLOUD_API_KEY
       timeout: 600
   - model_name: cloud-claude
     litellm_params:
-      model: anthropic/claude-sonnet-5-5
+      model: os.environ/ANTHROPIC_MODEL
+      custom_llm_provider: anthropic
       api_key: os.environ/ANTHROPIC_API_KEY
       timeout: 600
   - model_name: cloud-gemini
     litellm_params:
-      model: gemini/gemini-3-flash-preview
+      model: os.environ/GEMINI_MODEL
+      custom_llm_provider: gemini
       api_key: os.environ/GEMINI_API_KEY
       timeout: 600
 

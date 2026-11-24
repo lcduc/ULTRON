@@ -234,6 +234,7 @@ services:
       PAPER_CONFIG: /app/config.yaml
       PAPER_QUEUE_KEY: ${PAPER_QUEUE_KEY:-}
       MPLCONFIGDIR: /tmp/matplotlib   # read-only filesystem: matplotlib cache in tmpfs
+      CLOUD_PRIORITY: ${CLOUD_PRIORITY:-gemini,claude,gpt}   # order tried when config says "cloud"
     volumes:
       - ../mcp/google-calendar:/mcp:ro
       - ../services/paper-digest/config.yaml:/app/config.yaml:ro
@@ -317,8 +318,11 @@ services:
       LLAMA_API_KEY: ${LLAMA_API_KEY}
       # Optional cloud models (cloud-gpt, cloud-claude, cloud-gemini in litellm-config.yaml).
       OPENAI_CLOUD_API_KEY: ${OPENAI_CLOUD_API_KEY:-}
+      OPENAI_CLOUD_MODEL: ${OPENAI_CLOUD_MODEL:-gpt-6-luna}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5-5}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3-flash-preview}
     depends_on:
       postgres:
         condition: service_healthy

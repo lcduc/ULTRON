@@ -13,11 +13,12 @@ poll_minutes: 2          # how often the Papers folder is checked for replies an
 
 # ---------------------------------------------------------------- models (names served by LiteLLM)
 model: ultron            # scoring, notes, Overviews, critique
-writer_model: ultron     # Deep-read writing (W3 steps 6-8) and /doc rewrites; decided by the model test
-deep_chat_model: ultron  # the model that answers follow-ups in Deep-read chats (an Open WebUI model id)
-# Cloud options for writer_model / deep_chat_model (need a key in compose/.env, see README):
-#   cloud-gpt, cloud-claude, cloud-gemini (model ids set in compose/litellm-config.yaml).
-# A failed cloud call (no key, quota, outage) falls back to `model` for that step.
+writer_model: cloud      # Deep-read writing (W3 steps 6-8) and /doc rewrites
+deep_chat_model: cloud   # the model that answers follow-ups in Deep-read chats
+# "cloud" = the cloud models in the order of CLOUD_PRIORITY in compose/.env (e.g. gemini,claude,gpt),
+# skipping any without a working key, then `model` (local). A single one also works: cloud-gemini,
+# cloud-claude, cloud-gpt; or `ultron` to stay fully local. Model ids are set in compose/.env.
+cloud_reasoning_tokens: 8000  # extra output allowance for cloud models that think before answering
 model_wait_minutes: 20
 model_timeout_seconds: 600
 

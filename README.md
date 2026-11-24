@@ -114,15 +114,21 @@ Test scripts: `scripts/test-tools.ps1`, `scripts/test-modes.ps1`, `scripts/test-
 
 ### Cloud models (optional)
 
-Three cloud models can be used next to the local ones, each with your own API key: `cloud-gpt` (OpenAI, `gpt-6.2-sol`), `cloud-claude` (Anthropic, `claude-sonnet-5-5`) and `cloud-gemini` (Google, `gemini-3-flash-preview`, which has a free tier). They go through the LiteLLM gateway like the local models.
+Three cloud models can be used next to the local ones, each with your own API key: `cloud-gpt` (OpenAI), `cloud-claude` (Anthropic) and `cloud-gemini` (Google; `gemini-3-flash-preview` has a free tier). They go through the LiteLLM gateway like the local models. Everything is set in the **Cloud models** section of `compose\.env`:
 
-1. Put the keys you have in `compose\.env`: `OPENAI_CLOUD_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`. The OpenAI key has its own name, because `OPENAI_API_KEY` is the key for this stack's own gateway. Leave the others empty.
-2. Run `docker compose -p ultron up -d litellm`, then `python scripts\allow-cloud-models.py` once (it lets the stack's gateway key use the three models; `--remove` undoes it).
-3. Use them:
-   - **Chat:** they appear in Open WebUI's model picker. A chat with one of them is sent to that provider; the `ultron` models stay fully local.
-   - **Paper digest:** in `services\paper-digest\config.yaml`, set `writer_model` (who writes Deep reads and `/doc` rewrites) and/or `deep_chat_model` (who answers follow-ups in Deep-read chats) to `cloud-gemini`, `cloud-claude` or `cloud-gpt`. Only public paper text and your topic profile are sent. If a cloud call fails (no key, quota, outage), that step uses the local `ultron` instead and the audit log records it.
+| Variable | Meaning | Default |
+|---|---|---|
+| `CLOUD_PRIORITY` | Order to try the providers when the paper digest says `cloud` | `gemini,claude,gpt` |
+| `OPENAI_CLOUD_API_KEY`, `OPENAI_CLOUD_MODEL` | OpenAI key and model (not `OPENAI_API_KEY`, which is the gateway's own key) | `gpt-6-luna` |
+| `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` | Anthropic key and model | `claude-sonnet-5-5` |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | Gemini key and model | `gemini-3-flash-preview` |
 
-To use a different model of a provider, change its id in `compose\litellm-config.yaml` and run `docker compose -p ultron up -d litellm`.
+An empty key turns that provider off. After any change: `docker compose -p ultron up -d litellm paper-digest`. Once, after the first setup: `python scripts\allow-cloud-models.py` (lets the stack's gateway key use the three models; `--remove` undoes it).
+
+- **Chat:** they appear in Open WebUI's model picker. A chat with one of them is sent to that provider; the `ultron` models stay fully local.
+- **Paper digest:** `writer_model` (writes Deep reads and `/doc` rewrites) and `deep_chat_model` (answers follow-ups in Deep-read chats) in `services\paper-digest\config.yaml` are `cloud`: the first provider in `CLOUD_PRIORITY` that works, then the local `ultron`. A provider that fails (no key, quota, outage) is skipped for 10 minutes, and the audit log records each switch. Set a single model (`cloud-gemini`, …) or `ultron` to stay local. Only public paper text and your topic profile are sent.
+
+`compose\.env` follows the sections of `compose\.env.example`. To bring an older `.env` into that layout without changing any value: `python scripts\tidy-env.py` (writes a backup first; `--check` only shows what would change).
 
 ### Agent sandbox
 

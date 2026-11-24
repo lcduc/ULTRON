@@ -72,6 +72,10 @@ def _post(model: str, messages: list, schema: dict, max_tokens: int, temperature
     base = os.environ.get("OPENAI_API_BASE_URL", "").rstrip("/")
     if not base:
         raise RuntimeError("OPENAI_API_BASE_URL not set")
+    if model.startswith("cloud-"):
+        # Reasoning models (Gemini 3, GPT) spend part of max_tokens on thinking before the answer;
+        # without headroom a long answer comes back empty. Only tokens actually used are billed.
+        max_tokens += int(cfg().get("cloud_reasoning_tokens", 8000))
     r = requests.post(
         f"{base}/chat/completions",
         headers={"Authorization": f"Bearer {os.environ.get('OPENAI_API_KEY', '')}"},
@@ -84,6 +88,76 @@ def _post(model: str, messages: list, schema: dict, max_tokens: int, temperature
     return r.json()["choices"][0]["message"].get("content") or ""
 
 
+# ---------------------------------------------------------------- cloud models and their order
+# Config may name a model ("ultron", "cloud-gemini", ...) or "cloud": the cloud models in the order of
+# the CLOUD_PRIORITY env var (from compose/.env), then the local model. A model that fails is skipped
+# for DEAD_SECONDS, so one missing key doesn't cost a failed call at every step.
+PROVIDERS = {"gpt": "cloud-gpt", "openai": "cloud-gpt", "claude": "cloud-claude", "anthropic": "cloud-claude",
+             "gemini": "cloud-gemini", "google": "cloud-gemini"}
+DEAD_SECONDS = 600
+_dead: dict[str, float] = {}
+_chat_pick: dict[str, tuple[str, float]] = {}
+
+
+def cloud_order() -> list[str]:
+    out = []
+    for name in os.environ.get("CLOUD_PRIORITY", "gemini,claude,gpt").split(","):
+        m = PROVIDERS.get(name.strip().lower())
+        if m and m not in out:
+            out.append(m)
+    return out
+
+
+def model_chain(model: str | None, local: str) -> list[str]:
+    """Models to try in order for a configured model name; always ends with the local model."""
+    if not model or model == local:
+        return [local]
+    if model == "cloud":
+        return [m for m in cloud_order() if m != local] + [local]
+    return [model, local]
+
+
+def _is_dead(model: str) -> bool:
+    return _dead.get(model, 0) > time.time()
+
+
+def _mark_dead(model: str):
+    _dead[model] = time.time() + DEAD_SECONDS
+
+
+def _probe(model: str) -> bool:
+    """A one-token call: does this model answer right now?"""
+    base = os.environ.get("OPENAI_API_BASE_URL", "").rstrip("/")
+    try:
+        r = requests.post(f"{base}/chat/completions",
+                          headers={"Authorization": f"Bearer {os.environ.get('OPENAI_API_KEY', '')}"},
+                          json={"model": model, "messages": [{"role": "user", "content": "Reply with: ok"}],
+                                "max_tokens": 5}, timeout=60)
+        return r.ok
+    except Exception:
+        return False
+
+
+def pick_chat_model(name: str | None) -> str:
+    """Concrete model id for a chat (e.g. deep_chat_model): the first model in model_chain(name) that
+    answers a probe. Cached for DEAD_SECONDS. The local model is never probed."""
+    local = cfg().get("model", "ultron")
+    key = name or local
+    hit = _chat_pick.get(key)
+    if hit and hit[1] > time.time():
+        return hit[0]
+    pick = local
+    for m in model_chain(name, local):
+        if m == local or (not _is_dead(m) and _probe(m)):
+            pick = m
+            break
+        _mark_dead(m)
+    _chat_pick[key] = (pick, time.time() + DEAD_SECONDS)
+    if pick != (name or local):
+        log.info("chat model %r -> %s", name, pick)
+    return pick
+
+
 def llm_json(run: Run, step: str, system: str, user: str, schema: dict, *, model: str | None = None,
              max_tokens: int = 2000, temperature: float = 0.3, check=None, tries: int = 2) -> dict:
     """One model step with schema-enforced JSON output.
@@ -94,7 +168,8 @@ def llm_json(run: Run, step: str, system: str, user: str, schema: dict, *, model
     """
     c = cfg()
     local = c.get("model", "ultron")
-    model = model or local
+    chain = [m for m in model_chain(model, local) if m == local or not _is_dead(m)]
+    model = chain.pop(0)
     timeout = float(c.get("model_timeout_seconds", 600))
     deadline = time.time() + float(c.get("model_wait_minutes", 20)) * 60
     messages = [{"role": "system", "content": system + "\n\n" + UNTRUSTED_NOTE}, {"role": "user", "content": user}]
@@ -105,10 +180,11 @@ def llm_json(run: Run, step: str, system: str, user: str, schema: dict, *, model
             raw = _post(model, messages, schema, max_tokens, temperature, timeout)
         except Exception as e:  # network, HTTP, model loading
             errors.append(f"call: {str(e)[:200]}")
-            if model != local:  # a cloud model (no key, quota, outage): the local model takes over at once
-                log.warning("%s: %s failed (%s); using %s instead", step, model, str(e)[:120], local)
-                run.record(step + ".fallback", ok=True, model=model, to=local, error=str(e)[:300])
-                model = local
+            if chain:  # a cloud model (no key, quota, outage): the next one in line takes over at once
+                _mark_dead(model)
+                log.warning("%s: %s failed (%s); using %s instead", step, model, str(e)[:120], chain[0])
+                run.record(step + ".fallback", ok=True, model=model, to=chain[0], error=str(e)[:300])
+                model = chain.pop(0)
                 continue
             if time.time() + 60 >= deadline:
                 run.record(step, ok=False, model=model, errors=errors)

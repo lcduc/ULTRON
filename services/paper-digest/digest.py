@@ -279,7 +279,7 @@ def deep_chat(c, p, d):
     try:
         return common.create_chat(title, f"Deep read: {p['title']}", "\n\n".join(x for x in (header, d["markdown"]) if x), system=system,
                                   folder=c.get("chat_folder", "Papers"),
-                                  model=c.get("deep_chat_model") or c.get("model", "ultron"))
+                                  model=engine.pick_chat_model(c.get("deep_chat_model")))
     except Exception as e:
         log.warning("deep-read chat not saved for %s (%s)", p["id"], cut(e, 150))
         return None
