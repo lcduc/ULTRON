@@ -54,13 +54,29 @@ docker compose --profile gateway --profile monitoring --profile agent up -d
 # 5. Publish the chat UI to the tailnet (no-op if Tailscale is not installed or signed in)
 $ts = 'C:\Program Files\Tailscale\tailscale.exe'
 if (Test-Path $ts) {
-    # Reset first so a renamed machine or tailnet does not leave the mapping on the old name.
-    & $ts serve reset
-    & $ts serve --bg 3000
-    # ntfy (phone pushes) on a second HTTPS port; the chat UI stays on the root.
-    & $ts serve --bg --https=8443 http://127.0.0.1:2586
-    # Tonight's spoken briefing (the iPhone Shortcut fetches it); tailnet only, never funnel.
-    & $ts serve --bg --https=8445 http://127.0.0.1:2587
+    # At sign-in Tailscale is often still starting (state NoState) and serve silently publishes nothing,
+    # so wait until it is Running, then apply the rules and check they stuck.
+    function Wait-Tailscale($seconds) {
+        for ($i = 0; $i -lt $seconds / 5; $i++) {
+            try { if ((& $ts status --json | ConvertFrom-Json).BackendState -eq 'Running') { return $true } } catch {}
+            Start-Sleep -Seconds 5
+        }
+        return $false
+    }
+    $published = $false
+    for ($try = 1; $try -le 3 -and -not $published; $try++) {
+        if (-not (Wait-Tailscale 180)) { Write-Output "Tailscale not running yet (attempt $try)"; continue }
+        # Reset first so a renamed machine or tailnet does not leave the mapping on the old name.
+        & $ts serve reset
+        & $ts serve --bg 3000
+        # ntfy (phone pushes) on a second HTTPS port; the chat UI stays on the root.
+        & $ts serve --bg --https=8443 http://127.0.0.1:2586
+        # Tonight's spoken briefing (the iPhone Shortcut fetches it); tailnet only, never funnel.
+        & $ts serve --bg --https=8445 http://127.0.0.1:2587
+        $published = ((& $ts serve status | Out-String) -split "`n" | Where-Object { $_ -match '^https://' }).Count -ge 3
+        if (-not $published) { Write-Output "Tailscale serve rules not applied (attempt $try)" }
+    }
+    if ($published) { Write-Output "Tailscale serve rules published" } else { Write-Output "WARNING: Tailscale serve rules NOT published; run this script again" }
 }
 
 # 6. Load the Whisper model in the background, so the first voice message is not the slow one.
