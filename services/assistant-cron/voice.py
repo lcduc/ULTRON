@@ -1,7 +1,7 @@
 """Tonight's spoken briefing, saved to the state volume and served to the phone over the tailnet.
 
-GET /voice/evening.mp3 with "Authorization: Bearer <VOICE_KEY>" returns the clip, but only if it was
-made today. GET /voice/health returns "ok" without auth. Everything else is 404.
+GET /voice/evening.mp3 with "Authorization: Bearer <VOICE_KEY>" returns the clip, but only if it covers
+today or tomorrow (the evening clip covers the next day, so it stays valid after midnight). GET /voice/health returns "ok" without auth. Everything else is 404.
 """
 
 import hmac
@@ -10,7 +10,7 @@ import logging
 import os
 import threading
 import time
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -33,11 +33,12 @@ def save(day, mp3, script_text, directory=None):
 
 
 def todays_clip(tz, directory=None):
-    """Path of the clip if it was made today (in tz), else None."""
+    """Path of the clip if the day it covers is today or tomorrow (in tz), else None."""
     d = Path(directory or VOICE_DIR)
     try:
-        made = json.loads((d / "evening.json").read_text(encoding="utf-8"))["made"]
-        if datetime.fromtimestamp(made, tz).date() != datetime.now(tz).date():
+        covers = date.fromisoformat(json.loads((d / "evening.json").read_text(encoding="utf-8"))["date"])
+        today = datetime.now(tz).date()
+        if covers not in (today, today + timedelta(days=1)):
             return None
         p = d / "evening.mp3"
         return p if p.is_file() else None

@@ -33,7 +33,7 @@ sections:
 # enabled: false = text only, exactly as before.
 spoken:
   enabled: true
-  voice: am_michael
+  voice: bm_lewis
   max_items: 6      # schedule items read out, then "and N more"
   attach_to_push: false   # true = the 21:00 push also carries the MP3 (the iPhone Shortcut fetches it otherwise)
 
