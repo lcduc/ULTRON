@@ -5,7 +5,7 @@ config.yaml. Run with `--run morning|office|evening [--dry-run] [--no-model]` to
 `--fixture file.json` uses fake section data instead of fetching (see fixtures/); `--now 2026-11-24T09:00`
 fakes the clock.
 
-Three briefings: morning (06:00, weather and clothing tip), office (09:00, working days only: today's
+Three briefings: morning (08:30, weather and clothing tip), office (09:00, working days only: today's
 schedule, news, markets) and evening (21:00, tomorrow). Code runs the workflow. Each data section
 (calendar, tasks, weather, news, markets) returns plain data and is independent: if one fails it is
 named on an UNAVAILABLE line and the rest still go out. The model is called once, only to write the
@@ -497,7 +497,7 @@ def model_prompt(cfg, data, mode, day, today):
                  f"Briefing covers tomorrow, {day:%A %d %B}. The only weekday you may name is {day:%A}."]
     else:
         lines = [f"Time of day: morning, now {today:%A %d %B %Y}.", f"Briefing covers today ({day:%A %d %B})."]
-    if mode == "morning":  # the 06:00 briefing is about the weather only; never hint at the schedule
+    if mode == "morning":  # the 08:30 briefing is about the weather only; never hint at the schedule
         system += " In this briefing the greeting is about the weekday and the weather only, never the schedule."
     else:
         lines.append(f"Day summary: {schedule_summary(build_schedule(data, mode))}.")

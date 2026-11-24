@@ -4,11 +4,11 @@
 timezone: Asia/Ho_Chi_Minh
 
 # ---------------------------------------------------------------- schedule
-run_at: "02:00"          # nightly run starts
-hard_stop: "05:45"       # unfinished Deep reads are delivered as Overviews, so the 06:00 briefing gets the GPU
-push_at: "06:10"         # one push for the night's digest
-quiet_start: "05:45"     # queued papers wait during this window
-quiet_end: "06:15"
+run_at: "01:00"          # nightly run starts
+hard_stop: "08:15"       # unfinished Deep reads are delivered as Overviews, so the 08:30 briefing gets the GPU
+push_at: "09:00"         # one push for the night's digest
+quiet_start: "08:15"     # queued papers wait during this window
+quiet_end: "08:45"
 poll_minutes: 2          # how often the Papers folder is checked for replies and /doc
 
 # ---------------------------------------------------------------- models (names served by LiteLLM)

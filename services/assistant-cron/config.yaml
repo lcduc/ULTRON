@@ -9,7 +9,7 @@ timezone: Asia/Ho_Chi_Minh
 #   office  = today's schedule, news and markets; working days only (see below)
 #   evening = tomorrow's schedule and weather
 times:
-  morning: "06:00"
+  morning: "08:30"
   office: "09:00"
   evening: "21:00"
 

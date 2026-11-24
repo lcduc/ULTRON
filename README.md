@@ -14,7 +14,7 @@ Project page: [docs/index.html](docs/index.html) (also published with GitHub Pag
 - **Butler persona.** Ultron answers as a polite butler in every chat.
 - **Voice calls.** Hands-free talk with spoken answers, about 4.5 s from the end of your sentence to the first spoken reply. Speech-to-text (Whisper) and text-to-speech (Kokoro) run on the CPU, so they take no VRAM.
 - **Google Calendar, Tasks and Gmail.** Read and add events, keep a to-do list, search and read mail, and draft replies. It cannot send or delete mail.
-- **Phone briefings.** Three briefings arrive as pushes on your phone: 06:00 weather, 09:00 office (working days: schedule, news, markets) and 21:00 tomorrow. It is also saved as a chat, so you can reply to it.
+- **Phone briefings.** Three briefings arrive as pushes on your phone: 08:30 weather, 09:00 office (working days: schedule, news, markets) and 21:00 tomorrow. It is also saved as a chat, so you can reply to it.
 - **Memory.** It remembers lasting facts you tell it, and a small profile is always in its prompt.
 - **Web search.** Private search through SearXNG; no search account needed.
 - **Agent sandbox.** `ultron-agent` runs shell commands in a locked-down container that sees only one workspace folder. Skills tell it how to use apps such as ComfyUI, and a planner keeps long tasks on track.
@@ -32,7 +32,7 @@ flowchart LR
     OW --> MCP["calendar-mcp<br/>Calendar, Tasks, Gmail"]
     OW --> Search["SearXNG"]
     OW --> Box["Agent sandbox<br/>(workspace folder only)"]
-    Cron["assistant-cron<br/>06:00 / 09:00 / 21:00"] --> OW
+    Cron["assistant-cron<br/>08:30 / 09:00 / 21:00"] --> OW
     Cron --> MCP
     Cron --> Search
     Cron -->|push| Ntfy["ntfy"]
@@ -88,7 +88,7 @@ flowchart LR
 | Agent sandbox (Open Terminal 0.17.8) | internal only | Shell and files for `ultron-agent`; sees only the workspace folder |
 | Voice (Kokoro-FastAPI 0.10.0, CPU) | internal only | The bot's spoken replies; Whisper speech-to-text runs inside Open WebUI |
 | Phone pushes (ntfy 2.37.2) | 127.0.0.1:2586; tailnet `https://<pc-name>.<tailnet>.ts.net:8443` | Needs the user/token; carries the briefings to the iPhone |
-| Briefing job (assistant-cron) | internal only | Sends the 06:00 weather briefing, the 09:00 office briefing (working days: schedule, news, markets) and the 21:00 evening preview; settings in `services/assistant-cron/config.yaml` |
+| Briefing job (assistant-cron) | internal only | Sends the 08:30 weather briefing, the 09:00 office briefing (working days: schedule, news, markets) and the 21:00 evening preview; settings in `services/assistant-cron/config.yaml` |
 
 All secrets are in `compose/.env` and `monitoring/secrets/` (git-ignored). This includes the Google Calendar refresh token, which the daily backup copies with the other secrets.
 
@@ -278,7 +278,7 @@ For llama.cpp, unpack a newer release over `bin\llama\` and re-check the flags i
 
 | Time | Briefing | Contents |
 |---|---|---|
-| 06:00, every day | Morning | Greeting, today's weather and a clothing tip. One extra line only if something starts before 09:00. |
+| 08:30, every day | Morning | Greeting, today's weather and a clothing tip. One extra line only if something starts before 09:00. |
 | 09:00, working days | Office | Push: counts of today's events and tasks (overdue ones separately) and the top story. Chat: today's list, up to 4 news stories with links, and a Markets table (gold, Bitcoin, S&P 500, VN-Index, USD, EUR). |
 | 21:00, every day | Evening | Tomorrow's events and tasks in one list, and tomorrow's weather in one line with the clothing tip. |
 
@@ -325,7 +325,7 @@ The `ultron` model is called once per briefing: a greeting and clothing tip for 
 
 ### Paper digest (research papers, nightly)
 
-**What runs:** the `paper-digest` container (`services/paper-digest/`, plan in `logs/plans/paper-digest.md`). Every night at 02:00 it collects new papers (arXiv: cs.RO, cs.CL, cs.LG, cs.AI, cs.CV, cs.IR, cs.MA, cs.SD, eess.AS, eess.SY; Hugging Face Daily Papers; Semantic Scholar), scores them for GenAI and robotics, and writes three levels of report:
+**What runs:** the `paper-digest` container (`services/paper-digest/`, plan in `logs/plans/paper-digest.md`). Every night at 01:00 it collects new papers (arXiv: cs.RO, cs.CL, cs.LG, cs.AI, cs.CV, cs.IR, cs.MA, cs.SD, eess.AS, eess.SY; Hugging Face Daily Papers; Semantic Scholar), scores them for GenAI and robotics, and writes three levels of report:
 
 | Level | What you get | Where |
 |---|---|---|
@@ -333,7 +333,7 @@ The `ultron` model is called once per briefing: a greeting and clothing tip for 
 | Overview | About one page (A, B, C, D, G, H, J, L) | The digest chat, "Papers · <date>" |
 | Brief | One or two lines and the link | The digest chat |
 
-All chats are in the **Papers** folder. A push arrives at 06:10. Settings (topics, weights, budget, times, models) are in `services/paper-digest/config.yaml`; prompts in `services/paper-digest/prompts/`.
+All chats are in the **Papers** folder. A push arrives at 09:00. Settings (topics, weights, budget, times, models) are in `services/paper-digest/config.yaml`; prompts in `services/paper-digest/prompts/`.
 
 **Replies in the digest chat:** `deep 3` gives paper 3 a Deep read (straight away when the GPU is free). `3 skip`, `5 overview`, `7 brief` correct the scoring; the next nights learn from them.
 
