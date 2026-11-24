@@ -40,6 +40,28 @@ model_list:
         chat_template_kwargs:
           enable_thinking: false
 
+  # ---------------------------------------------------------------- cloud models (optional)
+  # Each works only when its key is set in compose/.env (OPENAI_CLOUD_API_KEY, ANTHROPIC_API_KEY,
+  # GEMINI_API_KEY); without a key a call fails and the paper digest falls back to `ultron`.
+  # They also appear in Open WebUI's model picker: a chat with one of them is sent to that provider.
+  # To use another model of a provider, change its id here (e.g. gemini/gemini-3.5-flash), then
+  # docker compose -p ultron up -d litellm.
+  - model_name: cloud-gpt
+    litellm_params:
+      model: openai/gpt-6.2-sol
+      api_key: os.environ/OPENAI_CLOUD_API_KEY
+      timeout: 600
+  - model_name: cloud-claude
+    litellm_params:
+      model: anthropic/claude-sonnet-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+      timeout: 600
+  - model_name: cloud-gemini
+    litellm_params:
+      model: gemini/gemini-3-flash-preview
+      api_key: os.environ/GEMINI_API_KEY
+      timeout: 600
+
 litellm_settings:
   callbacks: ["prometheus"]
   # /metrics requires the master key as Bearer (default since v1.85.0)

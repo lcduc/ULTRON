@@ -315,6 +315,10 @@ services:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
       LLAMA_API_KEY: ${LLAMA_API_KEY}
+      # Optional cloud models (cloud-gpt, cloud-claude, cloud-gemini in litellm-config.yaml).
+      OPENAI_CLOUD_API_KEY: ${OPENAI_CLOUD_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

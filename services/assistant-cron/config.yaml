@@ -5,18 +5,18 @@
 timezone: Asia/Ho_Chi_Minh
 
 # Local time (24 h, HH:MM) each briefing is sent. Set a time to "" to turn that briefing off.
-#   morning = weather and clothing tip (names the first event only if it starts before 09:00)
+#   morning = weather and clothing tip (names the first event only if it starts before 08:30, the office briefing time)
 #   office  = today's schedule, news and markets; working days only (see below)
 #   evening = tomorrow's schedule and weather
 times:
-  morning: "08:30"
-  office: "09:00"
+  morning: "06:00"
+  office: "08:30"
   evening: "21:00"
 
 # Which parts go into each briefing. (Mail is no longer part of any briefing.)
 sections:
   morning:
-    calendar: true    # only to find an event before 09:00
+    calendar: true    # only to find an event before 08:30
     weather: true
   office:
     calendar: true

@@ -5,7 +5,7 @@ config.yaml. Run with `--run morning|office|evening [--dry-run] [--no-model]` to
 `--fixture file.json` uses fake section data instead of fetching (see fixtures/); `--now 2026-11-24T09:00`
 fakes the clock.
 
-Three briefings: morning (08:30, weather and clothing tip), office (09:00, working days only: today's
+Three briefings: morning (06:00, weather and clothing tip), office (08:30, working days only: today's
 schedule, news, markets) and evening (21:00, tomorrow). Code runs the workflow. Each data section
 (calendar, tasks, weather, news, markets) returns plain data and is independent: if one fails it is
 named on an UNAVAILABLE line and the rest still go out. The model is called once, only to write the
@@ -48,7 +48,7 @@ MAX_BODY = 600
 LATE_GRACE_HOURS = 4  # default for late_grace_hours: still send if the container was down at the scheduled time
 CHAT_PREFIX = "Briefing ·"
 MODES = ("morning", "office", "evening")
-OFFICE_FROM = "09:00"  # the office briefing lists events from this time; earlier ones belong to the morning one
+OFFICE_FROM = "08:30"  # = the office briefing time: it lists events from here; earlier ones belong to the morning one
 DEFAULT_WORKING_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 DEFAULT_DAY_OFF = ["Off", "Leave", "Nghỉ", "OOO", "Vacation"]
 HOLIDAY_CALENDAR = "en.vietnamese#holiday@group.v.calendar.google.com"
@@ -357,7 +357,7 @@ def schedule_summary(items) -> str:
 
 
 def first_up(data):
-    """The morning line naming the first event before 09:00, or "" (then the schedule is not mentioned)."""
+    """The morning line naming the first event before OFFICE_FROM (08:30), or "" (then the schedule is not mentioned)."""
     early = sorted((e for e in data.get("calendar", []) if not e.get("all_day") and e.get("start") and e["start"] < OFFICE_FROM),
                    key=lambda e: e["start"])
     return f"First up: {cut(early[0]['title'], 40)} at {early[0]['start']}, sir." if early else ""
@@ -497,7 +497,7 @@ def model_prompt(cfg, data, mode, day, today):
                  f"Briefing covers tomorrow, {day:%A %d %B}. The only weekday you may name is {day:%A}."]
     else:
         lines = [f"Time of day: morning, now {today:%A %d %B %Y}.", f"Briefing covers today ({day:%A %d %B})."]
-    if mode == "morning":  # the 08:30 briefing is about the weather only; never hint at the schedule
+    if mode == "morning":  # the 06:00 briefing is about the weather only; never hint at the schedule
         system += " In this briefing the greeting is about the weekday and the weather only, never the schedule."
     else:
         lines.append(f"Day summary: {schedule_summary(build_schedule(data, mode))}.")

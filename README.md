@@ -14,7 +14,7 @@ Project page: [docs/index.html](docs/index.html) (also published with GitHub Pag
 - **Butler persona.** Ultron answers as a polite butler in every chat.
 - **Voice calls.** Hands-free talk with spoken answers, about 4.5 s from the end of your sentence to the first spoken reply. Speech-to-text (Whisper) and text-to-speech (Kokoro) run on the CPU, so they take no VRAM.
 - **Google Calendar, Tasks and Gmail.** Read and add events, keep a to-do list, search and read mail, and draft replies. It cannot send or delete mail.
-- **Phone briefings.** Three briefings arrive as pushes on your phone: 08:30 weather, 09:00 office (working days: schedule, news, markets) and 21:00 tomorrow. It is also saved as a chat, so you can reply to it.
+- **Phone briefings.** Three briefings arrive as pushes on your phone: 06:00 weather, 08:30 office (working days: schedule, news, markets) and 21:00 tomorrow. It is also saved as a chat, so you can reply to it.
 - **Memory.** It remembers lasting facts you tell it, and a small profile is always in its prompt.
 - **Web search.** Private search through SearXNG; no search account needed.
 - **Agent sandbox.** `ultron-agent` runs shell commands in a locked-down container that sees only one workspace folder. Skills tell it how to use apps such as ComfyUI, and a planner keeps long tasks on track.
@@ -32,7 +32,7 @@ flowchart LR
     OW --> MCP["calendar-mcp<br/>Calendar, Tasks, Gmail"]
     OW --> Search["SearXNG"]
     OW --> Box["Agent sandbox<br/>(workspace folder only)"]
-    Cron["assistant-cron<br/>08:30 / 09:00 / 21:00"] --> OW
+    Cron["assistant-cron<br/>06:00 / 08:30 / 21:00"] --> OW
     Cron --> MCP
     Cron --> Search
     Cron -->|push| Ntfy["ntfy"]
@@ -88,7 +88,7 @@ flowchart LR
 | Agent sandbox (Open Terminal 0.17.8) | internal only | Shell and files for `ultron-agent`; sees only the workspace folder |
 | Voice (Kokoro-FastAPI 0.10.0, CPU) | internal only | The bot's spoken replies; Whisper speech-to-text runs inside Open WebUI |
 | Phone pushes (ntfy 2.37.2) | 127.0.0.1:2586; tailnet `https://<pc-name>.<tailnet>.ts.net:8443` | Needs the user/token; carries the briefings to the iPhone |
-| Briefing job (assistant-cron) | internal only | Sends the 08:30 weather briefing, the 09:00 office briefing (working days: schedule, news, markets) and the 21:00 evening preview; settings in `services/assistant-cron/config.yaml` |
+| Briefing job (assistant-cron) | internal only | Sends the 06:00 weather briefing, the 08:30 office briefing (working days: schedule, news, markets) and the 21:00 evening preview; settings in `services/assistant-cron/config.yaml` |
 
 All secrets are in `compose/.env` and `monitoring/secrets/` (git-ignored). This includes the Google Calendar refresh token, which the daily backup copies with the other secrets.
 
@@ -111,6 +111,18 @@ Measured on 2026-11-22: time to first token for a one-line chat 0.33 s cached, 1
 Open items: free RAM with the full stack is slightly under the 4 GB target; the one-line chat prompt is 4,945 tokens with all tools (Qwen's tokenizer counts more than Gemma's); the briefing news section once returned "no results" (a search-side problem, not the model).
 
 Test scripts: `scripts/test-tools.ps1`, `scripts/test-modes.ps1`, `scripts/test-refusals.ps1`, `scripts/bench-agent-model.ps1`.
+
+### Cloud models (optional)
+
+Three cloud models can be used next to the local ones, each with your own API key: `cloud-gpt` (OpenAI, `gpt-6.2-sol`), `cloud-claude` (Anthropic, `claude-sonnet-5-5`) and `cloud-gemini` (Google, `gemini-3-flash-preview`, which has a free tier). They go through the LiteLLM gateway like the local models.
+
+1. Put the keys you have in `compose\.env`: `OPENAI_CLOUD_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`. The OpenAI key has its own name, because `OPENAI_API_KEY` is the key for this stack's own gateway. Leave the others empty.
+2. Run `docker compose -p ultron up -d litellm`, then `python scripts\allow-cloud-models.py` once (it lets the stack's gateway key use the three models; `--remove` undoes it).
+3. Use them:
+   - **Chat:** they appear in Open WebUI's model picker. A chat with one of them is sent to that provider; the `ultron` models stay fully local.
+   - **Paper digest:** in `services\paper-digest\config.yaml`, set `writer_model` (who writes Deep reads and `/doc` rewrites) and/or `deep_chat_model` (who answers follow-ups in Deep-read chats) to `cloud-gemini`, `cloud-claude` or `cloud-gpt`. Only public paper text and your topic profile are sent. If a cloud call fails (no key, quota, outage), that step uses the local `ultron` instead and the audit log records it.
+
+To use a different model of a provider, change its id in `compose\litellm-config.yaml` and run `docker compose -p ultron up -d litellm`.
 
 ### Agent sandbox
 
@@ -278,8 +290,8 @@ For llama.cpp, unpack a newer release over `bin\llama\` and re-check the flags i
 
 | Time | Briefing | Contents |
 |---|---|---|
-| 08:30, every day | Morning | Greeting, today's weather and a clothing tip. One extra line only if something starts before 09:00. |
-| 09:00, working days | Office | Push: counts of today's events and tasks (overdue ones separately) and the top story. Chat: today's list, up to 4 news stories with links, and a Markets table (gold, Bitcoin, S&P 500, VN-Index, USD, EUR). |
+| 06:00, every day | Morning | Greeting, today's weather and a clothing tip. One extra line only if something starts before 08:30. |
+| 08:30, working days | Office | Push: counts of today's events and tasks (overdue ones separately) and the top story. Chat: today's list, up to 4 news stories with links, and a Markets table (gold, Bitcoin, S&P 500, VN-Index, USD, EUR). |
 | 21:00, every day | Evening | Tomorrow's events and tasks in one list, and tomorrow's weather in one line with the clothing tip. |
 
 The office briefing is skipped on weekends, on official Vietnamese public holidays (Google's "Holidays in Vietnam" calendar, events described as "Public holiday") and on days with an all-day event whose title contains Off, Leave, Nghỉ, OOO or Vacation (`day_off_keywords`). The skip is logged. If the holiday calendar cannot be read, the day counts as a normal one.

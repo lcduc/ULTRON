@@ -5,15 +5,19 @@ timezone: Asia/Ho_Chi_Minh
 
 # ---------------------------------------------------------------- schedule
 run_at: "01:00"          # nightly run starts
-hard_stop: "08:15"       # unfinished Deep reads are delivered as Overviews, so the 08:30 briefing gets the GPU
+hard_stop: "05:45"       # unfinished Deep reads are delivered as Overviews, so the 06:00 briefing gets the GPU
 push_at: "09:00"         # one push for the night's digest
-quiet_start: "08:15"     # queued papers wait during this window
-quiet_end: "08:45"
+quiet_start: "05:45"     # queued papers wait during this window
+quiet_end: "06:15"
 poll_minutes: 2          # how often the Papers folder is checked for replies and /doc
 
 # ---------------------------------------------------------------- models (names served by LiteLLM)
 model: ultron            # scoring, notes, Overviews, critique
 writer_model: ultron     # Deep-read writing (W3 steps 6-8) and /doc rewrites; decided by the model test
+deep_chat_model: ultron  # the model that answers follow-ups in Deep-read chats (an Open WebUI model id)
+# Cloud options for writer_model / deep_chat_model (need a key in compose/.env, see README):
+#   cloud-gpt, cloud-claude, cloud-gemini (model ids set in compose/litellm-config.yaml).
+# A failed cloud call (no key, quota, outage) falls back to `model` for that step.
 model_wait_minutes: 20
 model_timeout_seconds: 600
 

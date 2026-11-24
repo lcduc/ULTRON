@@ -93,7 +93,8 @@ def llm_json(run: Run, step: str, system: str, user: str, schema: dict, *, model
     until model_wait_minutes. Raises StepFailed when no valid answer is obtained.
     """
     c = cfg()
-    model = model or c.get("model", "ultron")
+    local = c.get("model", "ultron")
+    model = model or local
     timeout = float(c.get("model_timeout_seconds", 600))
     deadline = time.time() + float(c.get("model_wait_minutes", 20)) * 60
     messages = [{"role": "system", "content": system + "\n\n" + UNTRUSTED_NOTE}, {"role": "user", "content": user}]
@@ -104,6 +105,11 @@ def llm_json(run: Run, step: str, system: str, user: str, schema: dict, *, model
             raw = _post(model, messages, schema, max_tokens, temperature, timeout)
         except Exception as e:  # network, HTTP, model loading
             errors.append(f"call: {str(e)[:200]}")
+            if model != local:  # a cloud model (no key, quota, outage): the local model takes over at once
+                log.warning("%s: %s failed (%s); using %s instead", step, model, str(e)[:120], local)
+                run.record(step + ".fallback", ok=True, model=model, to=local, error=str(e)[:300])
+                model = local
+                continue
             if time.time() + 60 >= deadline:
                 run.record(step, ok=False, model=model, errors=errors)
                 raise StepFailed(f"{step}: model unreachable ({str(e)[:120]})")
