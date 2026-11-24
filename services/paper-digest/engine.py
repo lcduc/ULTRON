@@ -80,6 +80,11 @@ def _post(model: str, messages: list, schema: dict, max_tokens: int, temperature
         body["max_tokens"] = max_tokens + int(cfg().get("cloud_reasoning_tokens", 8000))
         # Newer cloud models (e.g. Claude Sonnet 5.5) accept only their default temperature.
         del body["temperature"]
+    if model == "cloud-claude" and messages and messages[0]["role"] == "system":
+        # Anthropic prompt caching: repeated calls on the same paper (the 4 writer calls) read the
+        # system message, which holds the paper's text, at about a tenth of the input price.
+        body["messages"] = [{"role": "system", "content": [{"type": "text", "text": messages[0]["content"],
+                                                            "cache_control": {"type": "ephemeral"}}]}] + messages[1:]
     r = requests.post(f"{base}/chat/completions",
                       headers={"Authorization": f"Bearer {os.environ.get('OPENAI_API_KEY', '')}"},
                       json=body, timeout=timeout)

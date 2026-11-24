@@ -175,6 +175,27 @@ def build_context(cfg: dict, paper: dict, history) -> str:
 
 
 # ------------------------------------------------------------------ step 6: writing
+# One schema for every Deep-read section group. Anthropic caches the output schema together with the
+# system prompt, so a different schema per group would re-write the cached paper text 4 times.
+WRITER_SCHEMA = {"type": "object", "additionalProperties": False,
+                 "required": ["sections", "concepts_taught", "short_title"],
+                 "properties": {
+                     "sections": {"type": "array", "items": {
+                         "type": "object", "additionalProperties": False, "required": ["letter", "text"],
+                         "properties": {"letter": {"type": "string", "enum": list("ABCDEFGHIJKLM")},
+                                        "text": {"type": "string"}}}},
+                     "concepts_taught": {"type": "array", "items": {"type": "string"}},
+                     "short_title": {"type": "string"}}}
+
+
+def _sections_as_dict(obj: dict, letters: str) -> dict:
+    """WRITER_SCHEMA answers carry sections as a list; turn them into {letter: text} for the requested letters."""
+    secs = obj.get("sections")
+    if isinstance(secs, list):
+        obj["sections"] = {s["letter"]: s["text"] for s in secs if s.get("letter") in letters}
+    return obj
+
+
 def _schema(letters: str, extra: dict | None = None) -> dict:
     props = {"sections": {"type": "object", "additionalProperties": False, "required": list(letters),
                           "properties": {L: {"type": "string"} for L in letters}},
@@ -215,7 +236,7 @@ def _make_check(letters: str, budget: int):
             if len(t) < 40:
                 raise ValueError(f"section {L} is missing or too short")
             w = _words(t)
-            cap = int(budget * (0.6 if len(letters) > 2 else 0.8))
+            cap = int(budget * (0.75 if len(letters) > 2 else 0.95))
             if w > cap:
                 raise ValueError(f"section {L} is too long ({w} words); keep it under {cap} words")
             total += w
@@ -231,32 +252,47 @@ def _make_check(letters: str, budget: int):
                 secs["M"] = t
                 if len(re.findall(r"(?m)^\s*(?:\*\*)?\d+[.)]", t)) < 3:
                     raise ValueError("section M needs 3 numbered questions, each on its own line")
-        if total > budget * 1.35:
+        if total > budget * 1.5:
             raise ValueError(f"too long overall ({total} words); these sections together should be about {budget} words")
         # short_title is not checked: _short_title() falls back to the paper title when it is unusable.
     return check
 
 
-def write_sections(run, cfg: dict, paper: dict, notes_txt: str, ctx: str, section_list: str) -> tuple[dict, list, str]:
+def write_sections(run, cfg: dict, paper: dict, notes_txt: str, ctx: str, section_list: str,
+                   paper_text: str = "") -> tuple[dict, list, str]:
     model = cfg.get("writer_model")
     words = int(cfg.get("deep_words", 1000))
-    system_base = prompt("deep_system").replace("{words}", str(words))
+    # Everything that is the same for all section groups goes first, in the system message: the rules,
+    # the notes, the context and (writer_full_text) the paper itself. Providers cache that prefix, so
+    # the 2nd-4th calls read the paper at a fraction of the price. Group-specific text goes in `user`.
+    limit = int(cfg.get("writer_full_text_chars", 100000)) if cfg.get("writer_full_text", True) else 0
+    text_part = ""
+    if limit and paper_text:
+        cut_note = "" if len(paper_text) <= limit else f"\n[cut: first {limit:,} of {len(paper_text):,} characters]"
+        text_part = ("\n\nFULL PAPER TEXT (use it for details the notes lack; the notes' numbers are verified):\n"
+                     + untrusted(paper_text[:limit] + cut_note))
+    system = (prompt("deep_system").replace("{words}", str(words))
+              + f"\n\nPAPER: {paper.get('title', '')}\n\nSECTIONS OF THE PAPER (titles):\n{section_list}"
+              + f"\n\nVERIFIED NOTES:\n{untrusted(notes_txt)}\n\n{ctx}" + text_part)
     written: dict[str, str] = {}
     concepts: list[str] = []
     short_title = ""
     for name, letters, share in GROUPS:
         budget = int(words * share)
-        system = system_base + "\n\n" + prompt(name)
         so_far = "\n\n".join(f"[{L}. {NAMES[L]}]\n{written[L]}" for L in written)
-        user = (f"PAPER: {paper.get('title', '')}\n\nSECTIONS OF THE PAPER (titles):\n{section_list}\n\n"
-                f"VERIFIED NOTES:\n{untrusted(notes_txt)}\n\n{ctx}\n\n"
+        user = (f"INSTRUCTIONS FOR THESE SECTIONS:\n{prompt(name)}\n\n"
                 + (f"REPORT SO FAR:\n{so_far}\n\n" if so_far else "")
                 + f"Write sections {', '.join(letters)}. Length: about {budget} words for these sections together "
-                  f"(hard limit {int(budget * 1.35)}). Be brief; cut examples before cutting the mechanism.")
-        extra = {"short_title": {"type": "string"}} if name == "deep_AD" else None
+                  f"(hard limit {int(budget * 1.5)}). Be brief; cut examples before cutting the mechanism.")
+        extra = name == "deep_AD"  # this group also names the paper (short_title); others leave it ""
+        base_check = _make_check(letters, budget)
+
+        def check(obj, letters=letters, base_check=base_check):
+            base_check(_sections_as_dict(obj, letters))
+
         try:
-            obj = llm_json(run, f"write_{letters}", system, user, _schema(letters, extra), model=model,
-                           max_tokens=4000, temperature=0.4, check=_make_check(letters, budget), tries=3)
+            obj = llm_json(run, f"write_{letters}", system, user, WRITER_SCHEMA, model=model,
+                           max_tokens=4000, temperature=0.4, check=check, tries=3)
         except StepFailed as e:
             if "A" in letters:  # without the core (TL;DR to How it works) there is no report
                 raise
@@ -436,7 +472,7 @@ def deep_read(run, cfg: dict, paper: dict, history) -> dict:
         raise StepFailed("notes: every chunk failed")
     n_txt = notes_text(notes)
     ctx = build_context(cfg, paper, history)  # 5.
-    sections, concepts, short = write_sections(run, cfg, paper, n_txt, ctx, _section_list(ft))  # 6.
+    sections, concepts, short = write_sections(run, cfg, paper, n_txt, ctx, _section_list(ft), ft["text"])  # 6.
     report = assemble(paper.get("title", "Paper"), paper, sections)
     source = n_txt + "\n\n" + ft["text"]
     report, _ = critique_and_fix(run, cfg, report, n_txt, ft["text"])  # 7. + 8.

@@ -107,7 +107,9 @@ show_scores: true            # calibration period: scores shown in the digest
 
 # ---------------------------------------------------------------- reports
 deep_chunk_tokens: 6000
-deep_words: 1000             # A-M body, excluding diagrams
+deep_words: 1200             # A-M body, excluding diagrams (Claude with the full paper writes about this much)
+writer_full_text: true       # the writer also reads the paper itself, not only the notes
+writer_full_text_chars: 100000  # about 25k tokens; longer papers are cut (the writer is told)
 overview_words: 400
 context_references: 6        # abstracts of papers it builds on, fed to the writer
 
