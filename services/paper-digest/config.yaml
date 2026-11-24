@@ -12,9 +12,11 @@ quiet_end: "06:15"
 poll_minutes: 2          # how often the Papers folder is checked for replies and /doc
 
 # ---------------------------------------------------------------- models (names served by LiteLLM)
-model: ultron            # scoring, notes, Overviews, critique
-writer_model: cloud      # Deep-read writing (W3 steps 6-8) and /doc rewrites
-deep_chat_model: cloud   # the model that answers follow-ups in Deep-read chats
+model: ultron            # scoring, notes, Overviews, digest chat; fallback for everything
+writer_model: cloud      # Deep-read writing, critique and fixes (W3 steps 6-8): the only cloud use
+deep_chat_model: ultron  # answers follow-ups in Deep-read chats; for a hard question, switch that
+                         # chat to cloud-claude in Open WebUI's model picker
+doc_model: ultron        # /doc: merges your follow-ups into the report before it goes to Drive
 # "cloud" = the cloud models in the order of CLOUD_PRIORITY in compose/.env (e.g. gemini,claude,gpt),
 # skipping any without a working key, then `model` (local). A single one also works: cloud-gemini,
 # cloud-claude, cloud-gpt; or `ultron` to stay fully local. Model ids are set in compose/.env.

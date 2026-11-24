@@ -145,7 +145,7 @@ def rewrite_section(run, c, letter, original, qas, source, sections):
             + engine.untrusted("\n\n".join(f"Question: {q}\nAnswer: {a[:2500]}" for q, a in qas)))
     try:
         obj = engine.llm_json(run, f"doc_rewrite_{letter}", engine.prompt("doc_rewrite"), user, REWRITE_SCHEMA,
-                              model=c.get("writer_model"), max_tokens=3000, check=check, tries=2)
+                              model=c.get("doc_model") or c.get("model", "ultron"), max_tokens=3000, check=check, tries=2)
     except engine.StepFailed as e:
         log.warning("/doc: section %s kept as it was (%s)", letter, e)
         return None
@@ -302,7 +302,7 @@ def make_doc(run, cfg, history, chat_id) -> str:
 
         try:
             mapping = engine.llm_json(run, "doc_map", engine.prompt("doc_map"), user, MAP_SCHEMA,
-                                      model=cfg.get("writer_model"), max_tokens=2000, check=check_map)["items"]
+                                      model=cfg.get("doc_model") or cfg.get("model", "ultron"), max_tokens=2000, check=check_map)["items"]
         except engine.StepFailed as e:
             log.warning("/doc: could not map follow-ups (%s); report saved without changes", e)
             mapping = [{"qa": i, "section": "none", "resolved": False, "open_question": q[:200]}
