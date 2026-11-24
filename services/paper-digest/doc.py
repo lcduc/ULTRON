@@ -278,6 +278,8 @@ def make_doc(run, cfg, history, chat_id) -> str:
 
     qas = follow_ups(chat_messages(common.get_chat(chat_id)))
     chunks = split_report(rep["markdown"])
+    if chunks and chunks[0]["key"] is None and chunks[0]["text"].lstrip().startswith("# "):
+        chunks = chunks[1:]  # the report's own title/authors block; header() writes the title line
     run.record("doc_chat", ok=True, follow_ups=len(qas), sections=[c["key"] for c in chunks if c["key"]])
 
     try:
