@@ -3,5 +3,5 @@ PyYAML==6.0.3
 tzdata==2026.6
 matplotlib==3.10.3
 beautifulsoup4==4.13.4
-lxml==5.4.0
+lxml==6.1.0
 pypdf==5.7.0
