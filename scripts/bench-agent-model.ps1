@@ -2,7 +2,7 @@
 # Runs a temporary llama-server on port 8081 (localhost, no key). The normal
 # model server must be stopped first (scripts\model-off.ps1).
 param(
-    [string]$Model = 'Qwen3.6-35B-A3B-uncensored-heretic-Native-MTP-Preserved-Q4_K_M.gguf',
+    [string]$Model = 'Qwen3.6-35B-A3B-UD-Q4_K_M-MTP.gguf',
     [int[]]$CpuMoe = @(40, 32, 28, 24, 20),
     [int]$Context = 32768
 )

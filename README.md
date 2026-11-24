@@ -59,7 +59,7 @@ flowchart LR
 - Tested on: RTX 3060 12 GB, 32 GB RAM, Intel i5-14600KF, Windows 11.
 - The model uses about 11.1-11.3 GB of VRAM and about 14 GB of RAM. Free system RAM with the full stack is about 3.4-3.9 GB.
 - Software: Docker Desktop, Git, PowerShell, Python 3, Tailscale (for remote access), and a llama.cpp Windows CUDA 12 build unpacked in `bin\llama\`.
-- Disk: the active model files (`models/`, not in git) are about 23.6 GB (22.7 GB model with MTP, 0.9 GB vision projector), plus any old models you keep.
+- Disk: the active model files (`models/`, not in git) are about 23.6 GB (22.7 GB model with MTP, 0.9 GB vision projector).
 - A Google account is optional; it is needed only for the calendar, tasks, mail and the briefing's schedule.
 
 ## Quick start
@@ -104,7 +104,7 @@ The model server runs in router mode (`scripts/models.ini`) with one preset, `ul
 
 The model is `unsloth/Qwen3.6-35B-A3B-MTP-GGUF` (`models/Qwen3.6-35B-A3B-UD-Q4_K_M-MTP.gguf`, vision file `models/mmproj-Qwen3.6-35B-A3B-F16.gguf`). The preset uses `n-cpu-moe 28`, ubatch 1024 / batch 2048, MTP speculative decoding (`draft-mtp`, n-max 2) and the Qwen non-thinking samplers (temp 0.7, top-p 0.8, top-k 20, presence penalty 1.5). The per-name settings are in `compose/litellm-config.yaml`.
 
-The old Gemma 12B and Qwen Heretic models are kept as dormant presets (`old-gemma-12b`, `old-qwen-heretic`). They load only when requested by name, and their files stay in `models/`. Stage logs: `logs/one-model-stage1.md`, `logs/one-model-stage2.md`.
+The old Gemma 12B and Qwen Heretic models and their presets were deleted to free disk (about 27 GB). Stage logs: `logs/one-model-stage1.md`, `logs/one-model-stage2.md`.
 
 Measured on 2026-11-22: time to first token for a one-line chat 0.33 s cached, 1.38 s uncached; voice model-to-first-sentence median 0.76 s; a cold 3k-token prompt takes 6-8 s; the agent test T4 passed in 5 rounds (~15 s). Memory-mapped loading was tried and rejected (44 tok/s, less free RAM).
 
