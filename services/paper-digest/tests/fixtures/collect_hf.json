@@ -1,0 +1,8 @@
+[
+ {"paper": {"id": "2611.00003", "title": "Reranking with Large Language Models", "summary": "Retrieval-augmented generation benefits from a better reranker.",
+            "authors": [{"name": "Edsger Dijkstra"}], "publishedAt": "2026-11-22T09:00:00.000Z", "upvotes": 41},
+  "organization": {"name": "KlingTeam", "fullname": "NVIDIA Research"}},
+ {"paper": {"id": "2611.00005", "title": "Quiet Paper On Pottery", "summary": "Nothing about the topics here at all.",
+            "authors": [{"name": "Potter"}], "publishedAt": "2026-11-23T00:00:00.000Z", "upvotes": 3}},
+ {"paper": {"title": "Entry without id"}}
+]

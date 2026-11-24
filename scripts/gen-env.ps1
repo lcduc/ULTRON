@@ -86,6 +86,7 @@ if (Test-Missing 'NTFY_PASSWORD') { Set-EnvLine 'NTFY_PASSWORD' (New-HexSecret 1
 if (Test-Missing 'NTFY_TOKEN')    { Set-EnvLine 'NTFY_TOKEN' ('tk_' + (New-RandomString 29 'abcdefghijklmnopqrstuvwxyz0123456789')); $changed = $true }
 if (Test-Missing 'NTFY_TOPIC')    { Set-EnvLine 'NTFY_TOPIC' ('ultron-' + (New-HexSecret 8)); $changed = $true }
 if (Test-Missing 'VOICE_KEY')     { Set-EnvLine 'VOICE_KEY' (New-HexSecret 32); $changed = $true }
+if (Test-Missing 'PAPER_QUEUE_KEY') { Set-EnvLine 'PAPER_QUEUE_KEY' (New-HexSecret 32); $changed = $true }
 if ($changed) {
     [System.IO.File]::WriteAllText($envFile, (($lines -join "`n") + "`n"), $utf8)
     $written += ($envFile + ' (phone push settings)')

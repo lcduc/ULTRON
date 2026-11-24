@@ -171,6 +171,16 @@ The audio settings live in Open WebUI's database and override the `AUDIO_*` valu
 
 **How the bot handles incomplete requests:** the instructions in the tool's docstrings tell the model to ask when the day or time is missing or vague, never to ask for an end time but to estimate a typical length (haircut 45 min, dinner 90 min, and so on), and to use all-day events for birthdays or trips. The tool backs this up in code, because a small model does not always follow instructions. It refuses a date without a time unless `all_day` is set, adds nothing when the same event is already there, and stops on a clash with another timed event until the user agrees to the overlap.
 
+#### Paper digest: Google Drive
+
+The paper digest (`services/paper-digest/`) saves its reports to your Google Drive. This needs one more permission, `drive.file`, which `scripts/google-auth.py` now asks for.
+
+1. Enable the **Google Drive API** in Google Cloud Console (APIs & Services → Library).
+2. Run `python scripts/google-auth.py <client.json>` once more and tick the Drive box on Google's permission screen. Then recreate the containers that read `compose/.env`.
+3. Until you do, the digest still works; it just skips Drive and says so in its log.
+
+Ultron sees only the files and folders it creates itself, nothing else in your Drive. It creates a folder called **Phase 9 — Ongoing** (with year, month and one folder per paper inside). You can drag that folder anywhere in your Drive; Ultron finds it again by name.
+
 #### Google Calendar, Tasks and Gmail over MCP (trial)
 
 `mcp/google-calendar/` is the same calendar tool rebuilt as an MCP server, to try MCP, and it now also covers Google Tasks and Gmail. It runs as the `calendar-mcp` container and reuses the Google credentials above. `google_auth.py` holds the shared sign-in, `calendar_api.py`, `tasks_api.py` and `gmail_api.py` hold the logic, and `server.py` publishes it as eleven MCP tools over Streamable HTTP at `http://calendar-mcp:8000/mcp`, behind a bearer key (`CALENDAR_MCP_API_KEY` in `compose/.env`). The container has no published port and is not on the agent network.
@@ -312,3 +322,23 @@ The `ultron` model is called once per briefing: a greeting and clothing tip for 
 3. Settings, Users: add that server with user `ultron` and the `NTFY_PASSWORD` value (the app also accepts the `NTFY_TOKEN` as an access token).
 4. Subscribe to the topic (`NTFY_TOPIC`), using the default server. Allow notifications when iOS asks.
 5. In the Tailscale app, turn on VPN On Demand, so the phone can reach this PC when a push arrives (Apple's relay only wakes the app; the text is fetched from this PC over Tailscale).
+
+### Paper digest (research papers, nightly)
+
+**What runs:** the `paper-digest` container (`services/paper-digest/`, plan in `logs/plans/paper-digest.md`). Every night at 02:00 it collects new papers (arXiv: cs.RO, cs.CL, cs.LG, cs.AI, cs.CV, cs.IR, cs.MA, cs.SD, eess.AS, eess.SY; Hugging Face Daily Papers; Semantic Scholar), scores them for GenAI and robotics, and writes three levels of report:
+
+| Level | What you get | Where |
+|---|---|---|
+| Deep read | Full A–M tutor report; only for papers that change the foundations | Its own chat, "Paper · <title>", with the paper's text loaded for follow-ups |
+| Overview | About one page (A, B, C, D, G, H, J, L) | The digest chat, "Papers · <date>" |
+| Brief | One or two lines and the link | The digest chat |
+
+All chats are in the **Papers** folder. A push arrives at 06:10. Settings (topics, weights, budget, times, models) are in `services/paper-digest/config.yaml`; prompts in `services/paper-digest/prompts/`.
+
+**Replies in the digest chat:** `deep 3` gives paper 3 a Deep read (straight away when the GPU is free). `3 skip`, `5 overview`, `7 brief` correct the scoring; the next nights learn from them.
+
+**In a Deep-read chat:** ask anything, or use `/eli5`, `/visual`, `/deep`, `/code`, `/compare`, `/quiz`, `/defend`. `/doc` saves the full report, updated with the follow-ups, as a Google Doc in Drive (see "Paper digest: Google Drive" above).
+
+**Your own paper:** paste an arXiv or PDF link into any Ultron chat and ask Ultron to read it (tool `paper_reader`). Setup, once: run `scripts\gen-env.ps1` (it adds a random `PAPER_QUEUE_KEY` to `compose\.env` and changes nothing else that is set), recreate the container (`docker compose -p ultron up -d paper-digest`), then run `python scripts/install-paper-tool.py`.
+
+**By hand:** `docker compose -p ultron exec paper-digest python digest.py --run-now [--dry-run] [--no-push] [--no-deep] [--limit N]`. Audit logs of every step: the `paper-state` volume, `audit/`.

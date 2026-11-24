@@ -27,8 +27,10 @@ from pathlib import Path
 
 G = "https://www.googleapis.com/auth/"
 # Calendar events, Tasks, and Gmail: read, create drafts, and send (send is used only by the
-# background briefing job, which can mail only your own address).
-SCOPES = [G + "calendar.events", G + "tasks", G + "gmail.readonly", G + "gmail.compose", G + "gmail.send"]
+# background briefing job, which can mail only your own address). drive.file lets the paper
+# digest save reports to Drive; it only sees files and folders Ultron itself created.
+SCOPES = [G + "calendar.events", G + "tasks", G + "gmail.readonly", G + "gmail.compose", G + "gmail.send",
+          G + "drive.file"]
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 ENV_FILE = Path(__file__).resolve().parent.parent / "compose" / ".env"

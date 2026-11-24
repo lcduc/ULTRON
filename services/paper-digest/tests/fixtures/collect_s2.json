@@ -1,0 +1,7 @@
+[
+ {"citationCount": 12, "influentialCitationCount": 2, "venue": "CoRL",
+  "authors": [{"hIndex": 30}, {"hIndex": null}, {"hIndex": 55}],
+  "references": [{"title": "Diffusion Policy", "abstract": "Visuomotor policy learning."}, {"title": "ACT", "abstract": null}, null]},
+ null,
+ {"citationCount": 0, "influentialCitationCount": 0, "venue": "", "authors": [], "references": []}
+]

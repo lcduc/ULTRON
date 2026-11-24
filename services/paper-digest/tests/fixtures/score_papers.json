@@ -1,0 +1,4 @@
+[
+ {"id": "arxiv:2611.00001", "title": "Diffusion Policy for Humanoid Manipulation", "abstract": "We train a diffusion policy. It works well. More text follows.", "categories": ["cs.RO"], "labs": ["Physical Intelligence"], "comment": "CoRL 2026", "hf_upvotes": 10, "s2": null, "topics": ["robotics"]},
+ {"id": "arxiv:2611.00003", "title": "Reranking with Large Language Models", "abstract": "A better reranker for RAG.", "categories": ["cs.IR"], "labs": [], "comment": "", "hf_upvotes": null, "s2": {"citations": 3, "influential": 0, "max_author_hindex": 20, "venue": null, "references": []}, "topics": ["genai"]}
+]

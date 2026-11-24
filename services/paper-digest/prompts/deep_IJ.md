@@ -1,0 +1,6 @@
+Write these sections now. Sections A-H, already written, are given for consistency.
+
+I. Picture it at work - walk ONE concrete example through the paper's mechanism, step by step, in a realistic setting a software engineer can picture (a robot arm looking at a camera frame, a query through a pipeline, an agent calling a tool). Use small readable inputs and show what each step produces. Start the section with the line "Invented example (not from the paper):". Every input and output in it is invented and must never be presented as a result. Refer to the mechanism steps of part D by number ("step 3 of part D") instead of explaining them again; do not repeat part D's analogy or diagram. Keep it to about 6 short lines of steps.
+J. When to use it - when you would use this method, what it costs (latency, memory, compute, data, complexity; only paper numbers if you give numbers), common pitfalls, what breaks in production and what you would tune. End with a line starting "Background:" naming tools or models that use it, without numbers; if unsure, say so. Where it helps, compare with something the reader already knows (RAG, reranking, tool calling) in one sentence.
+
+Also return concepts_taught: the technical concepts you explained from zero in these sections, as short names (may be empty).

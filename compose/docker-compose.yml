@@ -209,6 +209,51 @@ services:
       - /tmp
     logging: *default-logging
 
+  # Nightly research-paper digest (02:00 run, push 06:10): Overviews and Briefs in a "Papers" chat,
+  # Deep reads in their own chats, PDFs and /doc Google Docs in Drive. Plan: logs/plans/paper-digest.md
+  # Settings: services/paper-digest/config.yaml. Open WebUI reaches the link queue at http://paper-digest:8095.
+  paper-digest:
+    build: ../services/paper-digest
+    image: ultron/paper-digest:1.0.0
+    restart: unless-stopped
+    environment:
+      PYTHONPATH: /mcp
+      PYTHONDONTWRITEBYTECODE: "1"
+      OPENAI_API_BASE_URL: ${OPENAI_API_BASE_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      NTFY_URL: http://ntfy:80
+      NTFY_TOPIC: ${NTFY_TOPIC}
+      NTFY_TOKEN: ${NTFY_TOKEN}
+      ULTRON_PUBLIC_URL: ${ULTRON_PUBLIC_URL:-}
+      ULTRON_API_KEY: ${ULTRON_API_KEY}
+      OPENWEBUI_URL: http://open-webui:8080
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
+      PAPER_STATE: /app/state
+      PAPER_CONFIG: /app/config.yaml
+      PAPER_QUEUE_KEY: ${PAPER_QUEUE_KEY:-}
+      MPLCONFIGDIR: /tmp/matplotlib   # read-only filesystem: matplotlib cache in tmpfs
+    volumes:
+      - ../mcp/google-calendar:/mcp:ro
+      - ../services/paper-digest/config.yaml:/app/config.yaml:ro
+      - ../services/paper-digest/prompts:/app/prompts:ro
+      - paper-state:/app/state   # history database, audit logs, scheduler state
+    read_only: true
+    mem_limit: 768m
+    depends_on:
+      ntfy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys,time; sys.exit(0 if time.time()-os.path.getmtime('/tmp/heartbeat') < 300 else 1)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    tmpfs:
+      - /tmp
+    logging: *default-logging
+
   # Sandbox for the agent: shell, files and code execution inside this container.
   # Sees only its own home volume and the workspace folder. No published port and
   # no Docker socket; Open WebUI reaches it at http://open-terminal:8000.
@@ -359,6 +404,7 @@ volumes:
   uptime-kuma-data:
   ntfy-data:
   assistant-state:
+  paper-state:
 
 networks:
   agent:

@@ -1,0 +1,117 @@
+# paper-digest settings. Edit freely; the job reads this file at every run.
+# Plan: logs/plans/paper-digest.md
+
+timezone: Asia/Ho_Chi_Minh
+
+# ---------------------------------------------------------------- schedule
+run_at: "02:00"          # nightly run starts
+hard_stop: "05:45"       # unfinished Deep reads are delivered as Overviews, so the 06:00 briefing gets the GPU
+push_at: "06:10"         # one push for the night's digest
+quiet_start: "05:45"     # queued papers wait during this window
+quiet_end: "06:15"
+poll_minutes: 2          # how often the Papers folder is checked for replies and /doc
+
+# ---------------------------------------------------------------- models (names served by LiteLLM)
+model: ultron            # scoring, notes, Overviews, critique
+writer_model: ultron     # Deep-read writing (W3 steps 6-8) and /doc rewrites; decided by the model test
+model_wait_minutes: 20
+model_timeout_seconds: 600
+
+# ---------------------------------------------------------------- sources
+arxiv_categories: [cs.RO, cs.CL, cs.LG, cs.AI, cs.CV, cs.IR, cs.MA, cs.SD, eess.AS, eess.SY]
+arxiv_max_results: 2000          # per run, across categories
+hf_daily_papers: true
+semantic_scholar: true
+user_agent: "ultron-paper-digest/1.0"
+
+# Watched labs: matched against authors' affiliations, the comment field and the abstract.
+labs:
+  - Physical Intelligence
+  - Google DeepMind
+  - NVIDIA
+  - Toyota Research Institute
+  - Stanford
+  - UC Berkeley
+  - Carnegie Mellon
+  - Hugging Face
+  - Meta
+  - OpenAI
+  - Anthropic
+  - Alibaba
+  - Qwen
+  - DeepSeek
+  - Mistral
+  - Microsoft Research
+
+venues: [CoRL, RSS, ICRA, IROS, NeurIPS, ICLR, ICML, CVPR, ICCV, ECCV, ACL, EMNLP, NAACL, SIGIR]
+
+# ---------------------------------------------------------------- topics (keyword prefilter, then the model scores)
+topics:
+  genai:
+    label: GenAI
+    keywords: [language model, LLM, retrieval, RAG, rerank, embedding, agent, tool use, tool-use, function calling,
+               reasoning model, instruction tuning, RLHF, preference optimization, inference serving, quantization,
+               KV cache, long context, mixture of experts, MoE, speculative decoding, knowledge distillation,
+               diffusion, text-to-image, text-to-video, video generation, image generation, speech, TTS,
+               text-to-speech, ASR, speech recognition, voice, multimodal, vision-language, VLM]
+  robotics:
+    label: Robotics
+    keywords: [robot, robotic, manipulation, grasp, locomotion, humanoid, embodied, policy learning,
+               imitation learning, behavior cloning, vision-language-action, VLA, sim-to-real, sim2real,
+               teleoperation, dexterous, navigation, world model, reinforcement learning, diffusion policy,
+               action chunking, quadruped, mobile manipulation, autonomous driving, drone, UAV, LeRobot]
+  mechatronics:
+    label: Mechatronics
+    keywords: [actuator, motor control, PID, servo, kinematics, dynamics, control system, MPC,
+               model predictive control, soft robot, gripper design, sensor fusion, embedded]
+
+# What the user already knows: Background sections skip these (edit freely).
+known_concepts:
+  - Transformers and attention
+  - Large language models: pretraining, fine-tuning, instruction tuning
+  - Retrieval-augmented generation (RAG) in production
+  - Embeddings and vector search
+  - Rerankers (cross-encoders)
+  - Tool-calling / function-calling agents
+  - Prompting and structured (JSON) output
+
+# Profile given to the scoring step.
+profile: >
+  AI engineer who builds production RAG systems, embedding/reranking pipelines and tool-calling agents.
+  Moving towards embodied AI: putting AI into physical robots (not raw mechatronics). Wants to stay current,
+  understand foundational papers well enough to answer an expert's questions, and apply them in production.
+  Has no robotics background yet; may buy a LeRobot SO-101 arm. Local hardware: one 12 GB GPU, 32 GB RAM.
+
+# ---------------------------------------------------------------- scoring and selection
+score_batch: 10
+max_scored: 300           # at most this many papers go to the model; the rest are pre-ranked out by code
+weights: {career_fit: 2.0, expert_expectation: 1.5, foundational: 1.5, impact: 1.0, evidence: 0.75, applicability: 0.75}
+deep_gate: {foundational: 3, career_fit: 2}   # a Deep read needs both (plan 4.2)
+max_deep_per_night: 4
+min_total_overview: 9.0      # weighted total needed for an Overview
+min_total_brief: 5.0         # below this: skip
+capped_tracks: [other_ai, mechatronics]   # Brief at most...
+capped_tracks_overview_total: 13.0        # ...unless the total reaches this
+track_balance: [genai, robotics]          # alternate these when totals are close
+balance_margin: 1.0
+budget_minutes: 90
+minutes_per_level: {deep: 25, overview: 5, brief: 0.5}
+max_briefs: 25
+brief_reserve_minutes: 10    # part of the budget kept for Briefs (about 20 one-liners)
+show_scores: true            # calibration period: scores shown in the digest
+
+# ---------------------------------------------------------------- reports
+deep_chunk_tokens: 6000
+deep_words: 1000             # A-M body, excluding diagrams
+overview_words: 400
+context_references: 6        # abstracts of papers it builds on, fed to the writer
+
+# ---------------------------------------------------------------- delivery
+chat_folder: Papers
+digest_title: "Papers · {date:%a %d %b}"
+deep_title: "Paper · {short_title}"
+public_url_env: ULTRON_PUBLIC_URL
+
+# ---------------------------------------------------------------- Drive
+drive_root: "Phase 9 — Ongoing"
+drive_save_levels: [deep, overview]

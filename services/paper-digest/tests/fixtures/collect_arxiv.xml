@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <id>http://arxiv.org/abs/2611.00001v2</id>
+    <title>Diffusion Policy for
+      Humanoid Manipulation</title>
+    <summary>We train a diffusion policy for dexterous robot manipulation. Work done at Physical Intelligence.</summary>
+    <link href="https://arxiv.org/abs/2611.00001v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.00001v2" rel="related" type="application/pdf" title="pdf"/>
+    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-23T16:10:14Z</published>
+    <arxiv:comment>Accepted to CoRL 2026</arxiv:comment>
+    <author><name>Ada Lovelace</name></author>
+    <author><name>Alan Turing</name></author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.00002v1</id>
+    <title>A Study of Meta-learning on Graphs</title>
+    <summary>We study meta-learning for graph classification with new regularisers.</summary>
+    <link href="https://arxiv.org/pdf/2611.00002v1" rel="related" type="application/pdf" title="pdf"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-23T10:00:00Z</published>
+    <author><name>Grace Hopper</name></author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.00003v1</id>
+    <title>Reranking with Large Language Models</title>
+    <summary>Retrieval-augmented generation benefits from a better reranker.</summary>
+    <category term="cs.IR" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-22T09:00:00Z</published>
+    <author><name>Edsger Dijkstra</name></author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.00004v1</id>
+    <title>Old paper outside the window</title>
+    <summary>Robot robot robot.</summary>
+    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-10T09:00:00Z</published>
+    <author><name>Old Author</name></author>
+  </entry>
+</feed>
