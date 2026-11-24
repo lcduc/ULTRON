@@ -72,19 +72,19 @@ def _post(model: str, messages: list, schema: dict, max_tokens: int, temperature
     base = os.environ.get("OPENAI_API_BASE_URL", "").rstrip("/")
     if not base:
         raise RuntimeError("OPENAI_API_BASE_URL not set")
+    body = {"model": model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens,
+            "response_format": {"type": "json_schema", "json_schema": {"name": "step", "strict": True, "schema": schema}}}
     if model.startswith("cloud-"):
         # Reasoning models (Gemini 3, GPT) spend part of max_tokens on thinking before the answer;
         # without headroom a long answer comes back empty. Only tokens actually used are billed.
-        max_tokens += int(cfg().get("cloud_reasoning_tokens", 8000))
-    r = requests.post(
-        f"{base}/chat/completions",
-        headers={"Authorization": f"Bearer {os.environ.get('OPENAI_API_KEY', '')}"},
-        json={"model": model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens,
-              "response_format": {"type": "json_schema",
-                                  "json_schema": {"name": "step", "strict": True, "schema": schema}}},
-        timeout=timeout,
-    )
-    r.raise_for_status()
+        body["max_tokens"] = max_tokens + int(cfg().get("cloud_reasoning_tokens", 8000))
+        # Newer cloud models (e.g. Claude Sonnet 5.5) accept only their default temperature.
+        del body["temperature"]
+    r = requests.post(f"{base}/chat/completions",
+                      headers={"Authorization": f"Bearer {os.environ.get('OPENAI_API_KEY', '')}"},
+                      json=body, timeout=timeout)
+    if not r.ok:  # keep the gateway's reason (e.g. an unsupported parameter) for the log and audit
+        raise RuntimeError(f"HTTP {r.status_code} from {model}: {r.text[:300]}")
     return r.json()["choices"][0]["message"].get("content") or ""
 
 

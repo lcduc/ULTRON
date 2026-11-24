@@ -102,3 +102,22 @@ class HistoryTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class QueueRetryTests(unittest.TestCase):
+    def test_retry_waits_then_returns(self):
+        import tempfile
+        from datetime import datetime, timedelta
+        from unittest import mock
+        import history as hmod
+        with tempfile.TemporaryDirectory() as d:
+            H = hmod.History(str(Path(d) / "h.db"))
+            H.queue_add("https://arxiv.org/abs/2304.13705", "test")
+            item = H.queue_next()
+            self.assertEqual(item["tries"], 0)
+            self.assertEqual(H.queue_retry(item["id"], "arXiv HTTP 429", 15), 1)
+            self.assertIsNone(H.queue_next())          # not before 15 minutes
+            later = datetime.now() + timedelta(minutes=16)
+            with mock.patch.object(hmod, "_now", return_value=later.isoformat(timespec="seconds")):
+                again = H.queue_next()
+            self.assertEqual((again["id"], again["tries"]), (item["id"], 1))

@@ -358,6 +358,28 @@ def collect(run, cfg: dict | None, history, today) -> tuple[list[dict], list[str
     return papers, notes
 
 
+class TransientError(RuntimeError):
+    """A failure worth retrying later (rate limit, outage); the queue keeps the link."""
+
+
+def _hf_paper(c: dict, aid: str) -> dict | None:
+    """Title, authors and abstract of an arXiv paper from Hugging Face's paper API, or None."""
+    try:
+        r = requests.get(f"https://huggingface.co/api/papers/{aid}", headers=_headers(c), timeout=30)
+        if r.status_code != 200:
+            return None
+        d = r.json()
+        title, abstract = (d.get("title") or "").strip(), (d.get("summary") or "").strip()
+        if not title:
+            return None
+        return _blank(aid, " ".join(title.split()), " ".join(abstract.split()),
+                      authors=[a.get("name", "") for a in d.get("authors") or [] if a.get("name")],
+                      url=f"https://arxiv.org/abs/{aid}", pdf_url=f"https://arxiv.org/pdf/{aid}",
+                      published=(d.get("publishedAt") or "")[:10], hf_upvotes=d.get("upvotes"))
+    except Exception:
+        return None
+
+
 def paper_from_url(url: str, cfg: dict | None = None) -> dict:
     """Paper for a queued link. arXiv abs/pdf/html links are looked up on arXiv; any other URL gives
     a minimal Paper (title from the address, pdf_url = the URL). Raises ValueError if arXiv has no such paper."""
@@ -371,7 +393,9 @@ def paper_from_url(url: str, cfg: dict | None = None) -> dict:
     try:
         found = fetch_arxiv_ids(c, [aid]).get(aid)
     except Exception as e:
-        raise ValueError(f"arXiv lookup failed: {str(e)[:120]}") from e
+        found = _hf_paper(c, aid)  # arXiv's API is rate-limited or down: Hugging Face mirrors the metadata
+        if not found:
+            raise TransientError(f"arXiv lookup failed: {str(e)[:120]}") from e
     if not found:
         raise ValueError(f"arXiv has no paper {aid}")
     found["sources"] = ["arxiv", "queue"]

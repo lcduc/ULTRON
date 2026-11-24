@@ -419,6 +419,18 @@ def run_night(opts: Opts, now: datetime | None = None) -> dict:
 
 
 # ---------------------------------------------------------------------------- queue (pasted links, deep upgrades)
+QUEUE_TRIES = 4            # a link that keeps hitting temporary errors is tried this often in total
+QUEUE_RETRY_MINUTES = 15   # wait between those tries
+
+
+def is_transient(e: Exception) -> bool:
+    """Rate limits, outages and network trouble: worth trying the link again later."""
+    if type(e).__name__ == "TransientError":
+        return True
+    return bool(re.search(r"HTTP (429|5\d\d)|\b(429|50[234])\b|timed? ?out|Connection|unreachable|Temporary",
+                          str(e), re.I))
+
+
 def process_queue_item(item) -> bool:
     """One queued link: full deep read, chat, push. Never raises. Returns True on success."""
     H = mod("history").History()
@@ -446,6 +458,15 @@ def process_queue_item(item) -> bool:
         return True
     except Exception as e:
         reason = cut(e, 140)
+        tries = int(item.get("tries") or 0)
+        if is_transient(e) and tries + 1 < QUEUE_TRIES:
+            try:
+                n = H.queue_retry(qid, reason, QUEUE_RETRY_MINUTES)
+                log.warning("queued paper hit a temporary error (%s): %s; try %d of %d in %d min",
+                            url, reason, n + 1, QUEUE_TRIES, QUEUE_RETRY_MINUTES)
+                return False
+            except Exception as e2:
+                log.warning("could not requeue (%s)", cut(e2, 100))
         log.warning("queued paper failed (%s): %s", url, reason)
         try:
             H.queue_done(qid, False, reason)
@@ -695,6 +716,12 @@ def make_server(host="0.0.0.0", port=HTTP_PORT) -> ThreadingHTTPServer:
 def scheduler():
     c = engine.cfg()
     log.info("scheduler started (run %s, hard stop %s, push %s)", c.get("run_at"), c.get("hard_stop"), c.get("push_at"))
+    try:
+        n = mod("history").History().queue_reset_running()
+        if n:
+            log.info("%d queued link(s) interrupted by a restart are queued again", n)
+    except Exception as e:
+        log.warning("could not reset interrupted queue items (%s)", cut(e, 100))
     threading.Thread(target=heartbeat_loop, daemon=True).start()
     threading.Thread(target=make_server().serve_forever, daemon=True).start()
     threading.Thread(target=queue_loop, daemon=True).start()

@@ -225,8 +225,12 @@ def _make_check(letters: str, budget: int):
                 raise ValueError("section E: the equation must be display LaTeX between $$ and $$, not a code block")
             if L == "E" and "$$" not in t and "no single central formula" not in t.lower():
                 raise ValueError("section E needs display LaTeX between $$ and $$, or the no-formula sentence")
-            if L == "M" and len(re.findall(r"(?m)^\s*\d+[.)]", t)) < 3:
-                raise ValueError("section M needs 3 numbered questions")
+            if L == "M":
+                # "1. ... 2. ... 3. ..." on one line is fine: put each question on its own line.
+                t = re.sub(r"(?<=[?.!\"')])\s+(?=(?:\*\*)?[2-9][.)]\s)", "\n", t)
+                secs["M"] = t
+                if len(re.findall(r"(?m)^\s*(?:\*\*)?\d+[.)]", t)) < 3:
+                    raise ValueError("section M needs 3 numbered questions, each on its own line")
         if total > budget * 1.35:
             raise ValueError(f"too long overall ({total} words); these sections together should be about {budget} words")
         # short_title is not checked: _short_title() falls back to the paper title when it is unusable.
@@ -250,8 +254,17 @@ def write_sections(run, cfg: dict, paper: dict, notes_txt: str, ctx: str, sectio
                 + f"Write sections {', '.join(letters)}. Length: about {budget} words for these sections together "
                   f"(hard limit {int(budget * 1.35)}). Be brief; cut examples before cutting the mechanism.")
         extra = {"short_title": {"type": "string"}} if name == "deep_AD" else None
-        obj = llm_json(run, f"write_{letters}", system, user, _schema(letters, extra), model=model,
-                       max_tokens=4000, temperature=0.4, check=_make_check(letters, budget), tries=3)
+        try:
+            obj = llm_json(run, f"write_{letters}", system, user, _schema(letters, extra), model=model,
+                           max_tokens=4000, temperature=0.4, check=_make_check(letters, budget), tries=3)
+        except StepFailed as e:
+            if "A" in letters:  # without the core (TL;DR to How it works) there is no report
+                raise
+            # A later group failing costs only its own sections, not the whole Deep read.
+            for L in letters:
+                written[L] = ("_This part could not be written tonight. Ask about it in this chat, "
+                              f"or send /doc later to try again._ ({str(e)[:80]})")
+            continue
         for L in letters:
             written[L] = _strip_heading(obj["sections"][L])
         concepts += [c.strip() for c in obj.get("concepts_taught", []) if c.strip()]

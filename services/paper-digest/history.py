@@ -66,6 +66,11 @@ class History:
         self._lock = threading.RLock()
         with self._conn() as c:
             c.executescript(_SCHEMA)
+            cols = {r["name"] for r in c.execute("PRAGMA table_info(queue)")}
+            if "tries" not in cols:  # added 2026-11-24: retries for temporary failures
+                c.execute("ALTER TABLE queue ADD COLUMN tries INTEGER DEFAULT 0")
+            if "not_before" not in cols:
+                c.execute("ALTER TABLE queue ADD COLUMN not_before TEXT")
 
     def _conn(self):
         c = sqlite3.connect(self.path, timeout=30)
@@ -191,11 +196,26 @@ class History:
     def queue_next(self) -> dict | None:
         """Oldest waiting item as {id, url, source}; it is marked 'running'."""
         with self._lock, self._conn() as c:
-            row = c.execute("SELECT id, url, source FROM queue WHERE status='new' ORDER BY id LIMIT 1").fetchone()
+            row = c.execute("SELECT id, url, source, COALESCE(tries, 0) AS tries FROM queue WHERE status='new' "
+                            "AND (not_before IS NULL OR not_before <= ?) ORDER BY id LIMIT 1", (_now(),)).fetchone()
             if not row:
                 return None
             c.execute("UPDATE queue SET status='running' WHERE id=?", (row["id"],))
         return dict(row)
+
+    def queue_reset_running(self) -> int:
+        """At startup: items left 'running' by a restart go back to the queue. Returns how many."""
+        with self._lock, self._conn() as c:
+            return c.execute("UPDATE queue SET status='new' WHERE status='running'").rowcount
+
+    def queue_retry(self, qid: int, note: str, minutes: float) -> int:
+        """Puts a running item back in the queue, not before `minutes` from now; returns its try count."""
+        later = (datetime.now() + timedelta(minutes=minutes)).isoformat(timespec="seconds")
+        with self._lock, self._conn() as c:
+            c.execute("UPDATE queue SET status='new', note=?, tries=COALESCE(tries, 0)+1, not_before=? WHERE id=?",
+                      (note, later, qid))
+            row = c.execute("SELECT tries FROM queue WHERE id=?", (qid,)).fetchone()
+        return int(row["tries"]) if row else 0
 
     def queue_done(self, qid: int, ok: bool, note: str = "") -> None:
         with self._lock, self._conn() as c:
