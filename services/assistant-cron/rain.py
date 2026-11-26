@@ -201,7 +201,7 @@ def check(B, cfg, now, *, state_path=STATE_PATH, briefing_state_path=None, dry_r
         print(f"PUSH: {text}\nONSET: {onset:%H:%M}\nREASON: rain likely at {onset:%H:%M}, dry now")
     else:
         try:
-            B.send(cfg, "Ultron — rain", text, B.chat_url("", cfg.get("model", "ultron")))
+            B.send(cfg, "Ultron — rain", text)
         except Exception:
             log.exception("rain push failed (not retried)")
     log.info("rain alert %s: onset %s", "previewed" if dry_run else "sent", f"{onset:%H:%M}")

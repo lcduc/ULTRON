@@ -826,20 +826,9 @@ def make_chat(cfg, mode, today, text, test=False, title=None, user_line=None):
 
 # ---------------------------------------------------------------------------- sending
 
-def chat_url(cid="", model="ultron"):
-    """Link for tapping a push: the briefing chat, or a fresh Ultron chat if there is none.
-    On iPhone it opens in Safari."""
-    base = os.environ.get("ULTRON_PUBLIC_URL", "").strip().rstrip("/")
-    if not base:
-        return ""
-    return f"{base}/c/{cid}" if cid else f"{base}/?models={model}"
-
-
-def push_ntfy(title, body, click):
+def push_ntfy(title, body):
     url = os.environ.get("NTFY_URL", "http://ntfy:80").rstrip("/")
     payload = {"topic": os.environ["NTFY_TOPIC"], "title": title, "message": body}
-    if click:
-        payload["click"] = click
     r = requests.post(
         url, json=payload, headers={"Authorization": f"Bearer {os.environ['NTFY_TOKEN']}"}, timeout=20
     )
@@ -856,13 +845,11 @@ def _hdr(text) -> str:
         return "=?UTF-8?B?" + base64.b64encode(text.encode("utf-8")).decode() + "?="
 
 
-def push_ntfy_audio(title, body, click, mp3, filename):
+def push_ntfy_audio(title, body, mp3, filename):
     """Publishes the push with the MP3 as an attachment: file as the request body, text in headers."""
     url = os.environ.get("NTFY_URL", "http://ntfy:80").rstrip("/") + "/" + os.environ["NTFY_TOPIC"]
     headers = {"Authorization": f"Bearer {os.environ['NTFY_TOKEN']}", "Title": _hdr(title),
                "Message": _hdr(body), "Filename": filename, "Content-Type": "audio/mpeg"}
-    if click:
-        headers["Click"] = click
     r = requests.put(url, data=mp3, headers=headers, timeout=60)
     r.raise_for_status()
     return r.json()
@@ -872,17 +859,17 @@ def push_email(title, body):
     make("gmail_api", "send_to_self").send_to_self(title, body)
 
 
-def send(cfg, title, body, click, audio=None, filename="briefing.mp3"):
+def send(cfg, title, body, audio=None, filename="briefing.mp3"):
     if cfg.get("channel", "ntfy") != "email":
         if audio:
             try:
-                push_ntfy_audio(title, body, click, audio, filename)
+                push_ntfy_audio(title, body, audio, filename)
                 log.info("sent via ntfy with audio (%d KB)", len(audio) // 1024)
                 return
             except Exception as e:
                 log.warning("audio push failed (%s); sending the text push", cut(e, 120))
         try:
-            push_ntfy(title, body, click)
+            push_ntfy(title, body)
             log.info("sent via ntfy")
             return
         except Exception as e:
@@ -959,7 +946,6 @@ def run(mode=None, dry_run=False, no_model=False, fixture=None, chat=False, show
     cid = ""
     if (chat or (not dry_run and not fixture)) and os.environ.get("ULTRON_API_KEY"):
         cid = make_chat(cfg, mode, today, render_chat(mode, day, data, failed, picks, cfg), test=dry_run or bool(fixture))
-    click = chat_url(cid, cfg.get("model", "ultron"))
     script_text, mp3 = make_audio(cfg, mode, data, day, picks, no_audio)
     if dry_run:
         if script_text:
@@ -969,7 +955,7 @@ def run(mode=None, dry_run=False, no_model=False, fixture=None, chat=False, show
                 Path(path).write_bytes(mp3)
             print(f"SPOKEN: {script_text}\n({len(script_text.split())} words; "
                   + (f"audio {len(mp3)} bytes at {path})" if mp3 else "no audio)"))
-        print(f"TITLE: {title}\nCLICK: {click}\nCHAT_ID: {cid}\nPICKS: {source}\n---\n{body}\n---\n({len(body)} chars)")
+        print(f"TITLE: {title}\nCHAT_ID: {cid}\nPICKS: {source}\n---\n{body}\n---\n({len(body)} chars)")
         if show_chat:
             print("\n=== CHAT ===\n" + render_chat(mode, day, data, failed, picks, cfg))
         if raw:
@@ -981,7 +967,7 @@ def run(mode=None, dry_run=False, no_model=False, fixture=None, chat=False, show
         except Exception as e:
             log.warning("could not save the clip (%s)", cut(e, 120))
     attach = mp3 if spoken.settings(cfg)["attach_to_push"] else None
-    send(cfg, title, body, click, attach, f"evening-{day.isoformat()}.mp3")
+    send(cfg, title, body, attach, f"evening-{day.isoformat()}.mp3")
 
 
 def due(cfg, mode, now, done):

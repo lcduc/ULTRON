@@ -78,10 +78,6 @@ class CommonTests(unittest.TestCase):
         self.assertIn(hist["currentId"], hist["messages"]["a"]["childrenIds"])
 
     def test_urls(self):
-        with mock.patch.dict(os.environ, {"ULTRON_PUBLIC_URL": "https://x.ts.net/"}):
-            self.assertEqual(common.chat_url("abc"), "https://x.ts.net/c/abc")
-        with mock.patch.dict(os.environ, {"ULTRON_PUBLIC_URL": ""}):
-            self.assertEqual(common.chat_url("abc"), "")
         self.assertEqual(common.chat_path("abc"), "/c/abc")
 
 

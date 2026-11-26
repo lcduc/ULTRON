@@ -455,7 +455,7 @@ def run_night(opts: Opts, now: datetime | None = None) -> dict:
     path = run.save()
     log.info("run saved: %s %s", path, run.summary())
     return {"digest_chat_id": digest_id, "counts": counts(shown), "markdown": text,
-            "push": {"title": "Papers ready", "body": body, "click": common.chat_url(digest_id) if digest_id else ""}}
+            "push": {"title": "Papers ready", "body": body}}
 
 
 # ---------------------------------------------------------------------------- queue (pasted links, deep upgrades)
@@ -496,8 +496,7 @@ def process_queue_item(item) -> bool:
         if level in set(c.get("drive_save_levels", ["deep", "overview"])):
             save_to_drive(H, paper, d.get("fulltext"), today)
         H.queue_done(qid, True, "")
-        common.push("Deep read ready" if deep else "Overview ready", f"{cut(paper['title'], 120)}",
-                    common.chat_url(cid))
+        common.push("Deep read ready" if deep else "Overview ready", f"{cut(paper['title'], 120)}")
         return True
     except Exception as e:
         reason = cut(e, 140)
@@ -679,7 +678,7 @@ def tick(c, now: datetime, last_poll: float) -> float:
     if push_due(c, now, st):
         p = st["pending_push"]
         try:
-            common.push(p["title"], p["body"], p.get("click", ""))
+            common.push(p["title"], p["body"])
             update_state(lambda s: s.pop("pending_push", None))
         except Exception as e:
             log.warning("push failed (%s); will retry", cut(e, 120))

@@ -139,18 +139,8 @@ def chat_path(chat_id="") -> str:
     return f"/c/{chat_id}"
 
 
-def chat_url(chat_id="", model="ultron") -> str:
-    """Absolute link for a push; "" when ULTRON_PUBLIC_URL is not set."""
-    base = os.environ.get("ULTRON_PUBLIC_URL", "").strip().rstrip("/")
-    if not base:
-        return ""
-    return f"{base}/c/{chat_id}" if chat_id else f"{base}/?models={model}"
-
-
-def push(title, body, click=""):
+def push(title, body):
     url = os.environ.get("NTFY_URL", "http://ntfy:80").rstrip("/")
     payload = {"topic": os.environ["NTFY_TOPIC"], "title": title, "message": body}
-    if click:
-        payload["click"] = click
     r = requests.post(url, json=payload, headers={"Authorization": f"Bearer {os.environ['NTFY_TOKEN']}"}, timeout=20)
     r.raise_for_status()
