@@ -159,9 +159,18 @@ class NightlyTests(unittest.TestCase):
             created.append({"title": title, "text": text, "system": system})
             return f"chat{len(created)}"
 
+        # The hard-stop check reads the clock; freeze it at the run's start unless a test set its own.
+        clock = digest.datetime
+        if clock is datetime:
+            class clock(datetime):
+                @classmethod
+                def now(cls, tz=None):
+                    return now
+
         with mock.patch.dict(sys.modules, fakes), mock.patch.object(engine, "cfg", lambda: dict(CFG)), \
                 mock.patch.object(common, "create_chat", create_chat), \
-                mock.patch.object(common, "push", lambda *a, **k: pushes.append(a)):
+                mock.patch.object(common, "push", lambda *a, **k: pushes.append(a)), \
+                mock.patch.object(digest, "datetime", clock):
             res = digest.run_night(opts or digest.Opts(), now=now)
         return res, created, drive
 
